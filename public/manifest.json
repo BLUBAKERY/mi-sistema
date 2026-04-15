@@ -1,0 +1,8 @@
+{
+  "short_name": "Mi Sistema",
+  "name": "Mi Sistema — Somos Marítima",
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#B8745A",
+  "background_color": "#F7F2EA"
+}

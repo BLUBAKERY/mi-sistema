@@ -2,41 +2,38 @@ import { useState, useEffect, useRef } from "react";
 
 const SK = "maritima_v6";
 const SK_MANTRAS = "maritima_mantras";
-
-const NATAL = {
-  sun: "Géminis", asc: "Aries", moon: "Piscis",
-  born: "6 de junio de 1988, 3:30am", city: "Olavarría, Buenos Aires, Argentina"
-};
+const SK_VIDEOS = "maritima_videos";
 
 const CYCLE_PHASES = {
-  menstrual: { name:"Menstrual", days:[1,2,3,4,5,6], color:"#C4856A", icon:"🌑", desc:"Descanso profundo. Tu cuerpo hace un trabajo enorme. Honrá el ritmo lento.", energy:"Baja", training:"Yoga restaurativo, caminatas suaves.", mood:"Introspección, sensibilidad, soltar.", foods:"Hierro y minerales: carnes rojas, lentejas, espinaca, chocolate amargo. Menos cafeína. Más caldos.", foodNote:"Más hierro · menos cafeína · chocolate amargo 🍫" },
-  folicular: { name:"Folicular", days:[7,8,9,10,11,12,13], color:"#8A9E8C", icon:"🌒", desc:"El estrógeno sube. Energía fresca, mente clara. Momento de empezar cosas nuevas.", energy:"Subiendo", training:"Cargas nuevas, más intensidad.", mood:"Optimismo, creatividad, arranque.", foods:"Variedad y ligereza: brotes, semillas de lino, fermentados, proteína magra. El cuerpo tolera bien los carbos.", foodNote:"Variedad · fermentados · carbos bienvenidos 🌱" },
-  ovulatoria: { name:"Ovulatoria", days:[14,15,16,17], color:"#D4A090", icon:"🌕", desc:"Tu pico. Energía máxima, sociabilidad alta. Aprovechalo.", energy:"Máxima", training:"Entrená fuerte. Cargas altas, potencia.", mood:"Confianza, magnetismo, conexión.", foods:"Antiinflamatorios: salmón, palta, frutas rojas, cúrcuma.", foodNote:"Antiinflamatorio · omega 3 · frutas rojas 🫐" },
-  lutea: { name:"Lútea", days:[18,19,20,21,22,23,24,25,26,27,28], color:"#6B6560", icon:"🌘", desc:"Progesterona sube. El cuerpo pide calma. Los antojos son reales.", energy:"Bajando", training:"Fuerza moderada, Pilates, escuchá al cuerpo.", mood:"Hacia adentro, sensibilidad, orden.", foods:"Carbos complejos y magnesio: batata, arroz integral, nueces, cacao, banana.", foodNote:"Carbos complejos · magnesio · cacao 🍌" },
+  menstrual:{name:"Menstrual",days:[1,2,3,4,5,6],color:"#C4856A",icon:"🌑",desc:"Descanso profundo. Tu cuerpo hace un trabajo enorme. Honrá el ritmo lento.",energy:"Baja",training:"Yoga restaurativo, caminatas suaves.",mood:"Introspección, sensibilidad, soltar.",foods:"Hierro: carnes rojas, lentejas, espinaca, chocolate amargo. Menos cafeína. Más caldos.",foodNote:"Más hierro · menos cafeína · chocolate amargo 🍫"},
+  folicular:{name:"Folicular",days:[7,8,9,10,11,12,13],color:"#8A9E8C",icon:"🌒",desc:"El estrógeno sube. Energía fresca, mente clara. Momento de empezar cosas nuevas.",energy:"Subiendo",training:"Cargas nuevas, más intensidad.",mood:"Optimismo, creatividad, arranque.",foods:"Variedad: brotes, semillas de lino, fermentados, proteína magra.",foodNote:"Variedad · fermentados · carbos bienvenidos 🌱"},
+  ovulatoria:{name:"Ovulatoria",days:[14,15,16,17],color:"#D4A090",icon:"🌕",desc:"Tu pico. Energía máxima, sociabilidad alta.",energy:"Máxima",training:"Entrená fuerte. Cargas altas, potencia.",mood:"Confianza, magnetismo, conexión.",foods:"Antiinflamatorios: salmón, palta, frutas rojas, cúrcuma.",foodNote:"Antiinflamatorio · omega 3 · frutas rojas 🫐"},
+  lutea:{name:"Lútea",days:[18,19,20,21,22,23,24,25,26,27,28],color:"#6B6560",icon:"🌘",desc:"Progesterona sube. El cuerpo pide calma. Los antojos son reales.",energy:"Bajando",training:"Fuerza moderada, Pilates, escuchá al cuerpo.",mood:"Hacia adentro, sensibilidad, orden.",foods:"Carbos complejos y magnesio: batata, arroz integral, nueces, cacao, banana.",foodNote:"Carbos complejos · magnesio · cacao 🍌"},
 };
-const getPhase = (d) => { for(const [k,p] of Object.entries(CYCLE_PHASES)){if(p.days.includes(d)) return {key:k,...p};} return {key:"lutea",...CYCLE_PHASES.lutea}; };
+const getPhase=(d)=>{for(const[k,p]of Object.entries(CYCLE_PHASES)){if(p.days.includes(d))return{key:k,...p};}return{key:"lutea",...CYCLE_PHASES.lutea};};
 
-const WORKOUTS = {
+const WORKOUTS={
   1:{name:"Día 1 — Fuerza",subtitle:"Full Body · Énfasis Tren Inferior",exercises:[{name:"Hip Thrust con barra",sets:4,reps:"10-12",notes:"Pelvis neutra, apretar glúteo arriba"},{name:"RDL con mancuernas",sets:3,reps:"10",notes:"Bisagra limpia, sentir isquios"},{name:"Split Squat Búlgaro",sets:3,reps:"8 c/lado",notes:"Descender 3 seg"},{name:"Adductor en máquina",sets:3,reps:"15",notes:"Controlado, rango completo"},{name:"Remo un brazo",sets:3,reps:"10 c/lado",notes:"Codo hacia cadera"},{name:"Press tríceps polea",sets:3,reps:"12-15",notes:"Codos pegados"},{name:"Face pull con cuerda",sets:3,reps:"15",notes:"Codos a altura de hombros"}]},
   2:{name:"Día 2 — Funcional",subtitle:"Full Body · Movilidad + Movimiento",exercises:[{name:"Sentadilla goblet",sets:4,reps:"12",notes:"Pausa 2 seg abajo"},{name:"Peso muerto sumo",sets:3,reps:"12",notes:"Pies abiertos, bisagra limpia"},{name:"Step up con mancuernas",sets:3,reps:"10 c/lado",notes:"Glúteo lidera"},{name:"Clamshell con banda",sets:3,reps:"15 c/lado",notes:"Lento, glúteo medio"},{name:"Serratus press en suelo",sets:3,reps:"12",notes:"Protracción final"},{name:"W-raise banco inclinado",sets:3,reps:"12",notes:"Sin inercia"},{name:"Kettlebell swing",sets:3,reps:"15",notes:"Potencia de cadera"}]},
   3:{name:"Día 3 — Integración",subtitle:"Full Body · Fuerza + Potencia",exercises:[{name:"Hip Thrust unilateral",sets:4,reps:"8 c/lado",notes:"Pausa arriba"},{name:"Sentadilla con barra",sets:4,reps:"10",notes:"Core braced"},{name:"Good morning barra liviana",sets:3,reps:"12",notes:"Bisagra lenta"},{name:"Prensa de piernas",sets:3,reps:"12",notes:"Pies altos = más glúteo"},{name:"Pulldown agarre neutro",sets:3,reps:"10",notes:"Hombros ABAJO"},{name:"Extensión tríceps sobre cabeza",sets:3,reps:"12",notes:"Codos quietos"},{name:"Curl bíceps alterno",sets:2,reps:"10 c/lado",notes:"Supinación completa"}]},
 };
-const ACTIVATION = ["Respiración diafragmática 90/90 — 10 resp","Cat-Cow lento — 8 reps","Hip 90/90 rotación activa — 6 c/lado","Glute bridge isométrico 5 seg — 8 reps","Bird-dog con pausa — 6 c/lado","Wall angels — 10 reps"];
-const MEAL_META = {
-  desayuno:{label:"Desayuno",icon:"☀️",target:"~30g proteína · ~40g carbs · ~15g grasa",example:"2 huevos + scoop proteína + 40g pan sarraceno + 30g palta → ~30g P",placeholder:"¿Qué comiste?"},
-  almuerzo:{label:"Almuerzo",icon:"🌿",target:"~35g proteína · ~50g carbs · ~15g grasa",example:"150g pollo + batata + vegetales + AOVE → ~36g P",placeholder:"¿Qué comiste?"},
+
+const ACTIVATION=["Respiración diafragmática 90/90 — 10 resp","Cat-Cow lento — 8 reps","Hip 90/90 rotación activa — 6 c/lado","Glute bridge isométrico 5 seg — 8 reps","Bird-dog con pausa — 6 c/lado","Wall angels — 10 reps"];
+const MEAL_META={
+  desayuno:{label:"Desayuno",icon:"☀️",target:"~30g proteína · ~40g carbs · ~15g grasa",example:"2 huevos + scoop proteína + 40g pan sarraceno + 30g palta",placeholder:"¿Qué comiste?"},
+  almuerzo:{label:"Almuerzo",icon:"🌿",target:"~35g proteína · ~50g carbs · ~15g grasa",example:"150g pollo + batata + vegetales + AOVE",placeholder:"¿Qué comiste?"},
   merienda:{label:"Merienda ⭐",icon:"🕓",target:"~25g proteína · ~20g carbs · ~10g grasa",example:"Yogur griego + frutos rojos + 1 cdita miel",placeholder:"Obligatoria con proteína."},
-  cena:{label:"Cena",icon:"🌙",target:"~35g proteína · ~20g carbs · ~15g grasa",example:"150g salmón + vegetales + AOVE → ~34g P",placeholder:"Más liviana en carbs."},
+  cena:{label:"Cena",icon:"🌙",target:"~35g proteína · ~20g carbs · ~15g grasa",example:"150g salmón + vegetales + AOVE",placeholder:"Más liviana en carbs."},
 };
-const CARDIO_OPTIONS = ["Cinta","Bici","Caminata","Trote","Elíptica","Natación","Otro"];
-const MORNING_OPTIONS = ["Estiramientos","Masaje facial","Respiraciones","Drenaje linfático","TRE","Meditación","Journaling","Tapping"];
-const WAKEUP_FEELINGS = ["tranquila","acelerada","ansiosa","descansada","confundida","motivada","pesada","liviana","triste","presente"];
-const EMOTIONS = ["tranquila","ansiosa","motivada","cansada","triste","plena","irritada","agradecida","confundida","conectada","urgencia","libre"];
-const PROC_REASONS = ["Abrumamiento","Perfeccionismo","Miedo al fracaso","Falta de energía","Distracción (redes)","No sé por dónde empezar","Urgencia financiera","Otro"];
+const CARDIO_OPTIONS=["Cinta","Bici","Caminata","Trote","Elíptica","Natación","Otro"];
+const MORNING_OPTIONS=["Estiramientos","Masaje facial","Respiraciones","Drenaje linfático","TRE","Meditación","Journaling","Tapping"];
+const WAKEUP_FEELINGS=["tranquila","acelerada","ansiosa","descansada","confundida","motivada","pesada","liviana","triste","presente"];
+const EMOTIONS=["tranquila","ansiosa","motivada","cansada","triste","plena","irritada","agradecida","confundida","conectada","urgencia","libre"];
+const PROC_REASONS=["Abrumamiento","Perfeccionismo","Miedo al fracaso","Falta de energía","Distracción (redes)","No sé por dónde empezar","Urgencia financiera","Otro"];
 
-const P = {cream:"#F7F2EA",parchment:"#EDE5D4",sand:"#CFC0A8",terracotta:"#B8745A",terracottaLight:"#CE9680",sage:"#7A9480",charcoal:"#28261F",warmGray:"#7A6E65",white:"#FDFAF3",gold:"#C4A96A",indigo:"#6B7DB3"};
+const P={cream:"#F7F2EA",parchment:"#EDE5D4",sand:"#CFC0A8",terracotta:"#B8745A",terracottaLight:"#CE9680",sage:"#7A9480",charcoal:"#28261F",warmGray:"#7A6E65",white:"#FDFAF3",gold:"#C4A96A",indigo:"#6B7DB3"};
 
-const GS = `
+const GS=`
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Jost:wght@300;400;500&display=swap');
   *{box-sizing:border-box;margin:0;padding:0;}
   html,body{background:${P.cream};font-family:'Jost',sans-serif;color:${P.charcoal};}
@@ -46,243 +43,121 @@ const GS = `
   ::-webkit-scrollbar-thumb{background:${P.sand};border-radius:2px;}
   @keyframes fadeUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
   @keyframes pulse{0%,100%{opacity:0.4;}50%{opacity:1;}}
-  @keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
 `;
 
-const today = () => new Date().toISOString().split("T")[0];
-const loadData = async () => { try{const r=localStorage.getItem(SK);return r?JSON.parse(r):{};}catch{return{};} };
-const saveData = async (d) => { try{localStorage.setItem(SK,JSON.stringify(d));}catch{} };
-const loadMantras = () => { try{const r=localStorage.getItem(SK_MANTRAS);return r?JSON.parse(r):[];}catch{return[];} };
-const saveMantras = (m) => { try{localStorage.setItem(SK_MANTRAS,JSON.stringify(m));}catch{} };
+const today=()=>new Date().toISOString().split("T")[0];
 
-const callAI = async (system, user, maxTokens=800) => {
-  try {
-    const r = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:maxTokens,system,messages:[{role:"user",content:user}]})});
-    const d = await r.json();
+// Storage — persists everything
+const loadData=async()=>{try{const r=localStorage.getItem(SK);return r?JSON.parse(r):{};}catch{return{};}};
+const saveData=async(d)=>{try{localStorage.setItem(SK,JSON.stringify(d));}catch{}};
+const loadMantras=()=>{try{const r=localStorage.getItem(SK_MANTRAS);return r?JSON.parse(r):[];}catch{return[];}};
+const saveMantras=(m)=>{try{localStorage.setItem(SK_MANTRAS,JSON.stringify(m));}catch{}};
+const loadVideos=()=>{try{const r=localStorage.getItem(SK_VIDEOS);return r?JSON.parse(r):[];}catch{return[];}};
+const saveVideos=(v)=>{try{localStorage.setItem(SK_VIDEOS,JSON.stringify(v));}catch{}};
+
+// AI call with proper headers using env variable
+const callAI=async(system,user,maxTokens=700)=>{
+  try{
+    const apiKey=process.env.REACT_APP_ANTHROPIC_KEY;
+    const r=await fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST",
+      headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01"},
+      body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:maxTokens,system,messages:[{role:"user",content:user}]})
+    });
+    const d=await r.json();
     return d.content?.[0]?.text||"";
-  } catch { return ""; }
+  }catch(e){console.error(e);return "";}
 };
 
-const JULI_CTX = `Sos el agente personal de bienestar de Julieta. Carta natal: Sol en Géminis, Ascendente en Aries, Luna en Piscis. Nació el 6 de junio de 1988 a las 3:30am en Olavarría, Buenos Aires.
+const JULI_CTX=`Sos el agente personal de bienestar de Julieta, 37 años, argentina, instructora de Pilates y emprendedora. Carta natal: Sol Géminis, Ascendente Aries, Luna Piscis. Nacida el 6/6/1988, 3:30am, Olavarría, Buenos Aires.
 
-Tu rol es como el micelio: ayudala a ver conexiones, patrones, rutas nuevas. Hacés preguntas como "¿y si lo ves de otra manera?" Podés apoyarte en neurociencia, espiritualidad, astrología, Human Design, autores como Clarissa Pinkola Estés, Glennon Doyle, Rumi, Van der Kolk, Gabor Maté.
+Tu rol es como el micelio: ayudala a ver conexiones, patrones, rutas nuevas. No das consejos directivos. Hacés preguntas que abren. Podés apoyarte en neurociencia, espiritualidad, astrología, Human Design, autores como Clarissa Pinkola Estés, Glennon Doyle, Rumi, Van der Kolk.
 
-Nunca sos paternalista. Nunca le decís qué hacer. Ella elige. Vos abrís caminos.
-Hablale de vos, español rioplatense. Directa, honesta, cálida. Sin afirmaciones vacías.`;
+Nunca sos paternalista. Ella elige. Vos abrís caminos.
+Hablale de vos, español rioplatense. Directa, honesta, cálida.`;
 
-const serif = (txt,sz=16,color=P.charcoal,italic=false,weight=400)=><span style={{fontFamily:"'Playfair Display',serif",fontSize:sz,color,fontStyle:italic?"italic":"normal",fontWeight:weight}}>{txt}</span>;
-const lbl = (txt)=><div style={{fontSize:10,letterSpacing:"0.12em",textTransform:"uppercase",color:P.warmGray,marginBottom:7,fontWeight:400}}>{txt}</div>;
-const Card = ({children,style={},delay=0})=><div style={{background:P.white,borderRadius:16,padding:"17px 19px",marginBottom:12,border:`1px solid ${P.parchment}`,animation:`fadeUp 0.4s ease ${delay}s both`,boxShadow:"0 1px 8px rgba(40,38,31,0.05)",...style}}>{children}</div>;
-const Chip = ({active,onClick,children,color=P.terracotta})=><button onClick={onClick} style={{padding:"6px 12px",borderRadius:20,border:`1px solid ${active?color:P.sand}`,background:active?color:"transparent",color:active?P.white:P.warmGray,fontSize:12,cursor:"pointer",fontFamily:"'Jost',sans-serif",fontWeight:active?500:300,transition:"all 0.18s",marginBottom:4}}>{children}</button>;
-const Slider = ({value,onChange,min=1,max=10,lbl:l,color=P.terracotta})=><div style={{marginBottom:14}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}><span style={{fontSize:10,letterSpacing:"0.12em",textTransform:"uppercase",color:P.warmGray}}>{l}</span><span style={{fontFamily:"'Playfair Display',serif",fontSize:14,color}}>{value}</span></div><input type="range" min={min} max={max} value={value} onChange={e=>onChange(+e.target.value)} style={{width:"100%",accentColor:color,cursor:"pointer"}}/></div>;
-const TA = ({value,onChange,placeholder,rows=3})=><textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={rows} style={{width:"100%",background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:10,padding:"10px 13px",fontSize:13,color:P.charcoal,resize:"none",lineHeight:1.6,fontWeight:300}}/>;
-const SavedBanner = ()=><div style={{background:P.sage+"25",border:`1px solid ${P.sage}50`,borderRadius:10,padding:"9px 14px",marginBottom:14,display:"flex",alignItems:"center",gap:8}}><span style={{color:P.sage}}>✓</span><span style={{fontSize:12,color:P.sage}}>Guardado</span></div>;
-const Loader = ()=><div style={{display:"flex",gap:4,padding:"8px 0"}}>{[0,0.2,0.4].map((d,i)=><div key={i} style={{width:8,height:8,borderRadius:"50%",background:P.sand,animation:`pulse 1s ease ${d}s infinite`}}/>)}</div>;
+// UI primitives
+const serif=(txt,sz=16,color=P.charcoal,italic=false,weight=400)=><span style={{fontFamily:"'Playfair Display',serif",fontSize:sz,color,fontStyle:italic?"italic":"normal",fontWeight:weight}}>{txt}</span>;
+const lbl=(txt)=><div style={{fontSize:10,letterSpacing:"0.12em",textTransform:"uppercase",color:P.warmGray,marginBottom:7,fontWeight:400}}>{txt}</div>;
+const Card=({children,style={},delay=0})=><div style={{background:P.white,borderRadius:16,padding:"17px 19px",marginBottom:12,border:`1px solid ${P.parchment}`,animation:`fadeUp 0.4s ease ${delay}s both`,boxShadow:"0 1px 8px rgba(40,38,31,0.05)",...style}}>{children}</div>;
+const Chip=({active,onClick,children,color=P.terracotta})=><button onClick={onClick} style={{padding:"6px 12px",borderRadius:20,border:`1px solid ${active?color:P.sand}`,background:active?color:"transparent",color:active?P.white:P.warmGray,fontSize:12,cursor:"pointer",fontFamily:"'Jost',sans-serif",fontWeight:active?500:300,transition:"all 0.18s",marginBottom:4}}>{children}</button>;
+const Slider=({value,onChange,min=1,max=10,lbl:l,color=P.terracotta})=><div style={{marginBottom:14}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}><span style={{fontSize:10,letterSpacing:"0.12em",textTransform:"uppercase",color:P.warmGray}}>{l}</span><span style={{fontFamily:"'Playfair Display',serif",fontSize:14,color}}>{value}</span></div><input type="range" min={min} max={max} value={value} onChange={e=>onChange(+e.target.value)} style={{width:"100%",accentColor:color,cursor:"pointer"}}/></div>;
+const TA=({value,onChange,placeholder,rows=3})=><textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={rows} style={{width:"100%",background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:10,padding:"10px 13px",fontSize:13,color:P.charcoal,resize:"none",lineHeight:1.6,fontWeight:300}}/>;
+const SavedBanner=()=><div style={{background:P.sage+"25",border:`1px solid ${P.sage}50`,borderRadius:10,padding:"9px 14px",marginBottom:14,display:"flex",alignItems:"center",gap:8}}><span style={{color:P.sage}}>✓</span><span style={{fontSize:12,color:P.sage}}>Guardado</span></div>;
+const Loader=()=><div style={{display:"flex",gap:4,padding:"8px 0"}}>{[0,0.2,0.4].map((d,i)=><div key={i} style={{width:8,height:8,borderRadius:"50%",background:P.sand,animation:`pulse 1s ease ${d}s infinite`}}/>)}</div>;
 
-// ── ASTROLOGY ─────────────────────────────────────────────────────────────────
-function AstrologyView({cycleData}) {
-  const [reading, setReading] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const phase = getPhase(cycleData?.currentDay||5);
+// Extract YouTube ID
+const getYouTubeId=(url)=>{
+  const match=url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/);
+  return match?match[1]:null;
+};
 
-  const generate = async () => {
-    setLoading(true);
-    const dateStr = new Date().toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
-    const prompt = `Sos una astrologa profunda y sabia, al estilo de The Pattern app — íntima, precisa, poética pero concreta.
+// ── VIDEO LIBRARY ─────────────────────────────────────────────────────────────
+function VideoLibrary({videos,onUpdate}){
+  const[name,setName]=useState("");
+  const[url,setUrl]=useState("");
+  const[cat,setCat]=useState("Yoga");
+  const CATS=["Yoga","Pilates","Meditación","Respiración","Movilidad","Otro"];
 
-Carta natal de Julieta:
-- Sol en Géminis (curiosidad, dualidad, comunicación, necesidad de estimulación mental)
-- Ascendente en Aries (impulso, iniciativa, energía que se lanza antes de pensar, liderazgo)
-- Luna en Piscis (mundo emocional profundo, sensibilidad extrema, conexión con lo invisible, tendencia a disolver límites)
-- Nacida el 6 de junio de 1988, 3:30am, Olavarría, Buenos Aires
-
-Hoy es ${dateStr}. Fase del ciclo: ${phase.name} (día ${cycleData?.currentDay||5}).
-
-Dale a Julieta una lectura astrológica de HOY específicamente. Mencioná qué planetas o energías están activas hoy (podés inventar algo coherente con la fecha si no tenés datos exactos de tránsitos, basándote en el mes y la estación). Conectalo con su carta natal. Sé específica sobre cómo esto impacta en ella personalmente — su forma de pensar (Géminis), su impulso (Aries) y su mundo emocional (Piscis).
-
-Estructura:
-1. **La energía disponible hoy** — qué está activo en el cielo y qué significa para ella
-2. **Tu carta habla** — cómo su carta natal interactúa con esto hoy
-3. **Un portal** — una acción, pregunta o intención concreta para aprovechar esta energía
-
-Máximo 200 palabras. Íntima, directa, sin jerga innecesaria.`;
-
-    const r = await callAI("Sos una astrologa profunda y sabia. Respondés en español.", prompt, 600);
-    setReading(r);
-    setLoading(false);
+  const add=()=>{
+    if(!name.trim()||!url.trim()) return;
+    const ytId=getYouTubeId(url);
+    const newV={id:Date.now(),name:name.trim(),url:url.trim(),ytId,category:cat};
+    onUpdate([...videos,newV]);
+    setName("");setUrl("");
   };
+  const remove=(id)=>onUpdate(videos.filter(v=>v.id!==id));
 
-  return (
-    <div style={{animation:"fadeUp 0.4s ease"}}>
-      {/* Natal chart summary */}
-      <Card style={{background:`linear-gradient(135deg,${P.indigo}15,${P.gold}08)`,borderColor:P.indigo+"30"}}>
-        <div style={{fontSize:9,letterSpacing:"0.2em",textTransform:"uppercase",color:P.indigo,marginBottom:12}}>Tu carta natal</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:14}}>
-          {[{l:"Sol",v:"Géminis ♊",c:P.gold},{l:"Ascendente",v:"Aries ♈",c:P.terracotta},{l:"Luna",v:"Piscis ♓",c:P.indigo}].map(({l,v,c})=>(
-            <div key={l} style={{textAlign:"center",background:P.white,borderRadius:10,padding:"10px 8px"}}>
-              <div style={{fontFamily:"'Playfair Display',serif",fontSize:15,color:c,marginBottom:3}}>{v}</div>
-              <div style={{fontSize:9,color:P.warmGray,letterSpacing:"0.08em",textTransform:"uppercase"}}>{l}</div>
-            </div>
-          ))}
-        </div>
-        <div style={{fontSize:11,color:P.warmGray,lineHeight:1.6,fontStyle:"italic"}}>
-          La mente que vuela y conecta puntos invisibles (Géminis), el espíritu que arranca sin esperar permiso (Aries), el alma que siente todo y recuerda los sueños (Piscis).
-        </div>
-      </Card>
-
-      {/* Daily reading */}
+  return(
+    <div>
       <Card>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-          {serif("Lectura de hoy",16,P.charcoal,false,500)}
-          <button onClick={generate} disabled={loading} style={{padding:"8px 16px",background:loading?P.sand:P.indigo,color:P.white,border:"none",borderRadius:20,fontSize:12,cursor:loading?"default":"pointer",fontFamily:"'Jost',sans-serif",fontWeight:500,transition:"all 0.2s"}}>
-            {loading?"Leyendo...":"✦ Consultar"}
+        {serif("Mi biblioteca de videos",15,P.charcoal,false,500)}
+        <div style={{marginTop:14,marginBottom:10}}>
+          {lbl("Categoría")}
+          <div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:12}}>
+            {CATS.map(c=><Chip key={c} active={cat===c} onClick={()=>setCat(c)} color={P.sage}>{c}</Chip>)}
+          </div>
+          {lbl("Nombre de la clase")}
+          <input value={name} onChange={e=>setName(e.target.value)} placeholder="Ej: Yin yoga 45min, Pilates core..." style={{width:"100%",background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:10,padding:"10px 13px",fontSize:13,color:P.charcoal,marginBottom:10}}/>
+          {lbl("Link de YouTube")}
+          <input value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://youtube.com/watch?v=..." style={{width:"100%",background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:10,padding:"10px 13px",fontSize:13,color:P.charcoal,marginBottom:12}}/>
+          <button onClick={add} disabled={!name.trim()||!url.trim()} style={{width:"100%",padding:"11px",background:P.sage,color:P.white,border:"none",borderRadius:10,fontFamily:"'Playfair Display',serif",fontSize:15,cursor:"pointer"}}>
+            + Agregar video
           </button>
         </div>
-        {loading && <Loader/>}
-        {reading && !loading && (
-          <div style={{fontFamily:"'Playfair Display',serif",fontSize:14,lineHeight:1.9,color:P.charcoal,whiteSpace:"pre-line",fontStyle:"italic"}}>{reading}</div>
-        )}
-        {!reading && !loading && (
-          <div style={{textAlign:"center",padding:"20px 0",color:P.sand,fontSize:13,fontStyle:"italic"}}>Tocá "Consultar" para ver qué dice el cielo hoy para vos</div>
-        )}
       </Card>
 
-      {/* Archetype reminder */}
-      <Card style={{background:P.indigo+"08",borderColor:P.indigo+"20"}}>
-        <div style={{fontSize:9,letterSpacing:"0.12em",textTransform:"uppercase",color:P.indigo,marginBottom:10}}>Tu arquetipo en esta fase</div>
-        <div style={{fontFamily:"'Playfair Display',serif",fontSize:14,lineHeight:1.7,color:P.charcoal}}>
-          {phase.key==="menstrual" && "La Bruja. La que sabe sin explicar. La que descansa sin culpa. La que suelta lo que ya no sirve."}
-          {phase.key==="folicular" && "La Doncella. La que empieza. La que ve posibilidades donde otros ven problemas. La energía fresca."}
-          {phase.key==="ovulatoria" && "La Madre. La que da. La que conecta. La que irradia sin esfuerzo. Tu magnetismo está en su pico."}
-          {phase.key==="lutea" && "La Hechicera. La que siente todo. La que necesita verdad. La que no tolera lo superficial."}
-        </div>
-      </Card>
-    </div>
-  );
-}
+      {videos.length===0&&<div style={{textAlign:"center",padding:"20px",color:P.sand,fontSize:13,fontStyle:"italic"}}>Todavía no agregaste videos</div>}
 
-// ── WEEKLY SUMMARY ────────────────────────────────────────────────────────────
-function WeeklySummary({entries}) {
-  const [summary, setSummary] = useState(null);
-  const [loading, setLoading] = useState(false);
-
-  const getLast7 = () => {
-    const days = [];
-    for(let i=6;i>=0;i--){
-      const d = new Date(); d.setDate(d.getDate()-i);
-      const key = d.toISOString().split("T")[0];
-      if(entries[key]) days.push(entries[key]);
-    }
-    return days;
-  };
-
-  const generate = async () => {
-    const last7 = getLast7();
-    if(last7.length===0){setSummary("Todavía no hay suficientes datos. Completá al menos un día para ver tu resumen.");return;}
-    setLoading(true);
-    const prompt = `Analizá la semana de Julieta y dále un resumen con patrones reales. Usá los datos disponibles.
-
-Datos de los últimos días:
-${JSON.stringify(last7,null,2)}
-
-Estructura:
-1. **Patrones que emergen** — qué se repite, qué conexiones ves entre emociones, movimiento, sueño, procrastinación
-2. **Lo que está creciendo** — algo positivo concreto que se está consolidando
-3. **Una pregunta para la semana que viene** — que abra exploración, no que genere presión
-
-Sé el micelio: mostrá conexiones que ella quizás no ve. Máximo 150 palabras.`;
-    const r = await callAI(JULI_CTX, prompt, 600);
-    setSummary(r);
-    setLoading(false);
-  };
-
-  const last7 = getLast7();
-
-  // Build metrics
-  const metrics = [
-    {l:"Agua promedio",v:last7.length?Math.round(last7.filter(e=>e.nutrition?.water).reduce((a,e)=>a+e.nutrition.water,0)/Math.max(last7.filter(e=>e.nutrition?.water).length,1))+" vasos":"—",c:P.sage},
-    {l:"Sueño promedio",v:last7.length?Math.round(last7.filter(e=>e.wellbeing?.sleepH).reduce((a,e)=>a+e.wellbeing.sleepH,0)/Math.max(last7.filter(e=>e.wellbeing?.sleepH).length,1)*10)/10+"h":"—",c:P.warmGray},
-    {l:"Días entrené",v:last7.filter(e=>e.workout?.gymDay||e.workout?.pyType).length+"/7",c:P.terracotta},
-    {l:"Ritual mañana",v:last7.filter(e=>e.morning?.ritualDone).length+"/7",c:P.gold},
-    {l:"Procrastinación",v:last7.filter(e=>e.wellbeing?.procrastinated).length+" días",c:P.warmGray},
-    {l:"Días registrados",v:last7.length+"/7",c:P.sage},
-  ];
-
-  return (
-    <div style={{animation:"fadeUp 0.4s ease"}}>
-      <Card>
-        <div style={{fontSize:9,letterSpacing:"0.15em",textTransform:"uppercase",color:P.terracotta,marginBottom:14}}>Últimos 7 días</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
-          {metrics.map(({l,v,c})=>(
-            <div key={l} style={{background:P.parchment,borderRadius:10,padding:"10px 13px"}}>
-              <div style={{fontSize:9,letterSpacing:"0.1em",textTransform:"uppercase",color:P.warmGray,marginBottom:4}}>{l}</div>
-              <span style={{fontFamily:"'Playfair Display',serif",fontSize:16,color:c,fontWeight:500}}>{v}</span>
-            </div>
+      {CATS.filter(c=>videos.some(v=>v.category===c)).map(c=>(
+        <div key={c}>
+          <div style={{fontSize:10,letterSpacing:"0.12em",textTransform:"uppercase",color:P.warmGray,marginBottom:8,marginTop:4}}>{c}</div>
+          {videos.filter(v=>v.category===c).map(v=>(
+            <Card key={v.id} style={{padding:"13px 16px"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div style={{flex:1}}>
+                  {serif(v.name,14,P.charcoal,false,500)}
+                  {v.ytId&&<div style={{fontSize:10,color:P.sage,marginTop:3}}>YouTube ✓</div>}
+                </div>
+                <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                  <a href={v.url} target="_blank" rel="noopener noreferrer" style={{padding:"6px 12px",background:P.terracotta,color:P.white,borderRadius:20,fontSize:11,textDecoration:"none",fontFamily:"'Jost',sans-serif"}}>▶ Ver</a>
+                  <button onClick={()=>remove(v.id)} style={{background:"none",border:"none",color:P.sand,cursor:"pointer",fontSize:18}}>×</button>
+                </div>
+              </div>
+            </Card>
           ))}
         </div>
-
-        {/* Agua chart */}
-        {last7.some(e=>e.nutrition?.water) && (
-          <div style={{marginBottom:16}}>
-            <div style={{fontSize:10,letterSpacing:"0.1em",textTransform:"uppercase",color:P.warmGray,marginBottom:8}}>Agua esta semana</div>
-            <div style={{display:"flex",gap:4,alignItems:"flex-end",height:50}}>
-              {last7.map((e,i)=>{
-                const w=e.nutrition?.water||0;
-                const h=Math.max(4,(w/12)*50);
-                const color=w>=6?P.sage:w>=4?P.sand:P.terracottaLight;
-                return <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
-                  <div style={{width:"100%",height:h,background:color,borderRadius:4,transition:"height 0.3s"}}/>
-                  <span style={{fontSize:9,color:P.warmGray}}>{w||"—"}</span>
-                </div>;
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Sueño chart */}
-        {last7.some(e=>e.wellbeing?.sleepH) && (
-          <div style={{marginBottom:16}}>
-            <div style={{fontSize:10,letterSpacing:"0.1em",textTransform:"uppercase",color:P.warmGray,marginBottom:8}}>Sueño esta semana</div>
-            <div style={{display:"flex",gap:4,alignItems:"flex-end",height:50}}>
-              {last7.map((e,i)=>{
-                const s=e.wellbeing?.sleepH||0;
-                const h=Math.max(4,(s/10)*50);
-                const color=s>=7?P.sage:s>=5?P.sand:P.terracottaLight;
-                return <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
-                  <div style={{width:"100%",height:h,background:color,borderRadius:4}}/>
-                  <span style={{fontSize:9,color:P.warmGray}}>{s||"—"}</span>
-                </div>;
-              })}
-            </div>
-          </div>
-        )}
-      </Card>
-
-      <Card>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-          {serif("Análisis semanal",16,P.charcoal,false,500)}
-          <button onClick={generate} disabled={loading} style={{padding:"8px 16px",background:loading?P.sand:P.terracotta,color:P.white,border:"none",borderRadius:20,fontSize:12,cursor:loading?"default":"pointer",fontFamily:"'Jost',sans-serif",fontWeight:500}}>
-            {loading?"Analizando...":"✦ Generar"}
-          </button>
-        </div>
-        {loading && <Loader/>}
-        {summary && !loading && (
-          <div style={{fontFamily:"'Playfair Display',serif",fontSize:14,lineHeight:1.9,color:P.charcoal,whiteSpace:"pre-line",fontStyle:"italic"}}>{summary}</div>
-        )}
-        {!summary && !loading && (
-          <div style={{textAlign:"center",padding:"16px 0",color:P.sand,fontSize:13,fontStyle:"italic"}}>Tocá "Generar" para ver tus patrones de la semana</div>
-        )}
-      </Card>
+      ))}
     </div>
   );
 }
 
 // ── MANTRAS ───────────────────────────────────────────────────────────────────
-function MantrasManager({mantras,onUpdate}) {
-  const [newM, setNewM] = useState("");
-  const add = ()=>{if(newM.trim()){onUpdate([...mantras,newM.trim()]);setNewM("");}};
-  const remove = (i)=>onUpdate(mantras.filter((_,idx)=>idx!==i));
-  return (
+function MantrasManager({mantras,onUpdate}){
+  const[newM,setNewM]=useState("");
+  const add=()=>{if(newM.trim()){onUpdate([...mantras,newM.trim()]);setNewM("");}};
+  const remove=(i)=>onUpdate(mantras.filter((_,idx)=>idx!==i));
+  return(
     <div>
       <div style={{display:"flex",gap:8,marginBottom:12}}>
         <input value={newM} onChange={e=>setNewM(e.target.value)} onKeyDown={e=>e.key==="Enter"&&add()} placeholder="Escribí una frase tuya..." style={{flex:1,background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:10,padding:"9px 13px",fontSize:13,color:P.charcoal}}/>
@@ -300,18 +175,20 @@ function MantrasManager({mantras,onUpdate}) {
 }
 
 // ── MORNING ───────────────────────────────────────────────────────────────────
-function MorningSection({data,onChange,mantras,cycleDay}) {
-  const [wakeupFeel,setWakeupFeel]=useState(data?.wakeupFeel||[]);
-  const [wakeupThoughts,setWakeupThoughts]=useState(data?.wakeupThoughts||"");
-  const [rituals,setRituals]=useState(data?.rituals||[]);
-  const [customRitual,setCustomRitual]=useState("");
-  const [ritualDone,setRitualDone]=useState(data?.ritualDone||false);
-  const [isFasting,setIsFasting]=useState(data?.isFasting||false);
-  const [fastingStart,setFastingStart]=useState(data?.fastingStart||"");
-  const [fastingEnd,setFastingEnd]=useState(data?.fastingEnd||"");
-
+function MorningSection({data,onChange,mantras,cycleDay}){
   const phase=getPhase(cycleDay||5);
   const todayMantra=mantras.length>0?mantras[new Date().getDate()%mantras.length]:null;
+
+  const[wakeupFeel,setWakeupFeel]=useState(data?.wakeupFeel||[]);
+  const[wakeupThoughts,setWakeupThoughts]=useState(data?.wakeupThoughts||"");
+  const[rituals,setRituals]=useState(data?.rituals||[]);
+  const[customRitual,setCustomRitual]=useState("");
+  const[ritualDone,setRitualDone]=useState(data?.ritualDone||false);
+  const[isFasting,setIsFasting]=useState(data?.isFasting||false);
+  const[fastingStart,setFastingStart]=useState(data?.fastingStart||"");
+  const[fastingEnd,setFastingEnd]=useState(data?.fastingEnd||"");
+
+  const MORNING_OPTIONS=["Estiramientos","Masaje facial","Respiraciones","Drenaje linfático","TRE","Meditación","Journaling","Tapping"];
 
   const emit=(patch)=>onChange({wakeupFeel,wakeupThoughts,rituals,ritualDone,isFasting,fastingStart,fastingEnd,...patch});
   const togFeel=f=>{const n=wakeupFeel.includes(f)?wakeupFeel.filter(x=>x!==f):[...wakeupFeel,f];setWakeupFeel(n);emit({wakeupFeel:n});};
@@ -320,14 +197,14 @@ function MorningSection({data,onChange,mantras,cycleDay}) {
 
   const fastingHours=()=>{
     if(!fastingStart||!fastingEnd) return null;
-    const [sh,sm]=fastingStart.split(":").map(Number);
-    const [eh,em]=fastingEnd.split(":").map(Number);
+    const[sh,sm]=fastingStart.split(":").map(Number);
+    const[eh,em]=fastingEnd.split(":").map(Number);
     let diff=(eh*60+em)-(sh*60+sm);
     if(diff<0) diff+=24*60;
     return Math.round(diff/60*10)/10;
   };
 
-  return (
+  return(
     <div>
       {todayMantra&&(
         <Card style={{background:`linear-gradient(135deg,${P.gold}15,${P.terracotta}08)`,borderColor:P.gold+"40"}}>
@@ -349,7 +226,7 @@ function MorningSection({data,onChange,mantras,cycleDay}) {
       <Card>
         {serif("Ayuno",15,P.charcoal,false,500)}
         <div style={{marginTop:12,marginBottom:10}}>
-          <Chip active={isFasting} onClick={()=>{setIsFasting(!isFasting);emit({isFasting:!isFasting});}} color={P.warmGray}>{isFasting?"✓ En ayuno":"¿Estás haciendo ayuno?"}</Chip>
+          <Chip active={isFasting} onClick={()=>{const v=!isFasting;setIsFasting(v);emit({isFasting:v});}} color={P.warmGray}>{isFasting?"✓ En ayuno":"¿Estás en ayuno?"}</Chip>
         </div>
         {isFasting&&(
           <div>
@@ -378,50 +255,56 @@ function MorningSection({data,onChange,mantras,cycleDay}) {
           <input value={customRitual} onChange={e=>setCustomRitual(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addCustom()} placeholder="Otra acción..." style={{flex:1,background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:8,padding:"8px 12px",fontSize:12,color:P.charcoal}}/>
           <button onClick={addCustom} style={{padding:"8px 14px",background:P.terracotta,color:P.white,border:"none",borderRadius:8,fontSize:12,cursor:"pointer"}}>+</button>
         </div>
-        <Chip active={ritualDone} onClick={()=>{setRitualDone(!ritualDone);emit({ritualDone:!ritualDone});}} color={P.sage}>{ritualDone?"✓ Lo hice":"¿Lo completaste?"}</Chip>
+        <Chip active={ritualDone} onClick={()=>{const v=!ritualDone;setRitualDone(v);emit({ritualDone:v});}} color={P.sage}>{ritualDone?"✓ Lo hice":"¿Lo completaste?"}</Chip>
       </Card>
     </div>
   );
 }
 
 // ── WORKOUT ───────────────────────────────────────────────────────────────────
-function WorkoutLog({onSave,existing,wasSaved}) {
-  const [gymDay,setGymDay]=useState(existing?.gymDay||1);
+function WorkoutLog({onSave,existing,wasSaved,videos}){
+  const[sessionType,setSessionType]=useState(existing?.sessionType||"gym");
+  const[gymDay,setGymDay]=useState(existing?.gymDay||1);
   const workout=WORKOUTS[gymDay];
-  const [startTime,setStartTime]=useState(existing?.startTime||"");
-  const [endTime,setEndTime]=useState(existing?.endTime||"");
-  const [actDone,setActDone]=useState(existing?.actDone||false);
-  const [sets,setSets]=useState(existing?.sets||{});
-  const [notes,setNotes]=useState(existing?.notes||"");
-  const [bodyFeel,setBodyFeel]=useState(existing?.bodyFeel||5);
-  const [pain,setPain]=useState(existing?.pain||1);
-  const [cardioSessions,setCardioSessions]=useState(existing?.cardioSessions||[]);
-  const [steps,setSteps]=useState(existing?.steps||"");
-  const [pilatesYoga,setPilatesYoga]=useState(existing?.pilatesYoga||false);
-  const [pyType,setPyType]=useState(existing?.pyType||"");
-  const [pyDuration,setPyDuration]=useState(existing?.pyDuration||45);
-  const [pyIntensity,setPyIntensity]=useState(existing?.pyIntensity||5);
-  const [pyNotes,setPyNotes]=useState(existing?.pyNotes||"");
-  const [showGym,setShowGym]=useState(existing?.showGym!==undefined?existing.showGym:true);
+  const[startTime,setStartTime]=useState(existing?.startTime||"");
+  const[endTime,setEndTime]=useState(existing?.endTime||"");
+  const[actDone,setActDone]=useState(existing?.actDone||false);
+  const[sets,setSets]=useState(existing?.sets||{});
+  const[notes,setNotes]=useState(existing?.notes||"");
+  const[bodyFeel,setBodyFeel]=useState(existing?.bodyFeel||5);
+  const[pain,setPain]=useState(existing?.pain||1);
+  const[cardioSessions,setCardioSessions]=useState(existing?.cardioSessions||[]);
+  const[steps,setSteps]=useState(existing?.steps||"");
+  const[selectedVideo,setSelectedVideo]=useState(existing?.selectedVideo||null);
+  const[videoDone,setVideoDone]=useState(existing?.videoDone||false);
+  const[pyNotes,setPyNotes]=useState(existing?.pyNotes||"");
+  const[pyIntensity,setPyIntensity]=useState(existing?.pyIntensity||5);
 
   const upd=(ei,si,f,v)=>setSets(p=>({...p,[`${ei}-${si}`]:{...(p[`${ei}-${si}`]||{}),[f]:v}}));
   const toggleCardio=t=>setCardioSessions(p=>p.find(s=>s.type===t)?p.filter(s=>s.type!==t):[...p,{type:t,duration:30}]);
   const updateCardioDur=(t,dur)=>setCardioSessions(p=>p.map(s=>s.type===t?{...s,duration:dur}:s));
 
-  return (
+  const handleSave=()=>onSave({sessionType,gymDay,startTime,endTime,actDone,sets,notes,bodyFeel,pain,cardioSessions,steps,selectedVideo,videoDone,pyNotes,pyIntensity});
+
+  const pyVideos=videos.filter(v=>["Yoga","Pilates","Meditación","Respiración","Movilidad","Otro"].includes(v.category));
+
+  return(
     <div>
       {wasSaved&&<SavedBanner/>}
+
+      {/* Session type */}
       <Card>
         {lbl("¿Qué tipo de sesión hiciste hoy?")}
         <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-          <Chip active={showGym&&!pilatesYoga} onClick={()=>{setShowGym(true);setPilatesYoga(false);}} color={P.terracotta}>Gym</Chip>
-          <Chip active={pilatesYoga&&!showGym} onClick={()=>{setShowGym(false);setPilatesYoga(true);}} color={P.sage}>Pilates / Yoga</Chip>
-          <Chip active={showGym&&pilatesYoga} onClick={()=>{setShowGym(true);setPilatesYoga(true);}} color={P.gold}>Ambos</Chip>
-          <Chip active={!showGym&&!pilatesYoga} onClick={()=>{setShowGym(false);setPilatesYoga(false);}} color={P.warmGray}>Solo cardio</Chip>
+          <Chip active={sessionType==="gym"} onClick={()=>setSessionType("gym")} color={P.terracotta}>🏋️ Gym</Chip>
+          <Chip active={sessionType==="pilates"} onClick={()=>setSessionType("pilates")} color={P.sage}>🧘 Pilates / Yoga</Chip>
+          <Chip active={sessionType==="both"} onClick={()=>setSessionType("both")} color={P.gold}>Ambos</Chip>
+          <Chip active={sessionType==="cardio"} onClick={()=>setSessionType("cardio")} color={P.warmGray}>Solo cardio</Chip>
         </div>
       </Card>
 
-      {showGym&&(<>
+      {/* GYM section */}
+      {(sessionType==="gym"||sessionType==="both")&&(<>
         <Card style={{background:P.terracotta+"10",borderColor:P.terracotta+"30"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
             <div>{serif(workout.name,20,P.charcoal,false,500)}<div style={{marginTop:4,fontSize:12,color:P.warmGray}}>{workout.subtitle}</div></div>
@@ -433,6 +316,7 @@ function WorkoutLog({onSave,existing,wasSaved}) {
             ))}
           </div>
         </Card>
+
         <Card>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:actDone?0:12}}>
             {serif("Activación",15,P.charcoal,false,500)}
@@ -440,6 +324,7 @@ function WorkoutLog({onSave,existing,wasSaved}) {
           </div>
           {!actDone&&<div style={{marginTop:10}}>{ACTIVATION.map((a,i)=><div key={i} style={{display:"flex",gap:8,marginBottom:7}}><div style={{width:20,height:20,borderRadius:"50%",background:P.parchment,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><span style={{fontSize:10,color:P.warmGray}}>{i+1}</span></div><span style={{fontSize:12,color:P.charcoal,lineHeight:1.5}}>{a}</span></div>)}</div>}
         </Card>
+
         {workout.exercises.map((ex,ei)=>(
           <Card key={ei} delay={ei*0.03}>
             {serif(ex.name,15,P.charcoal,false,500)}
@@ -458,17 +343,42 @@ function WorkoutLog({onSave,existing,wasSaved}) {
         ))}
       </>)}
 
-      {pilatesYoga&&(
+      {/* PILATES/YOGA section */}
+      {(sessionType==="pilates"||sessionType==="both")&&(
         <Card style={{background:P.sage+"10",borderColor:P.sage+"40"}}>
           {serif("Pilates / Yoga",16,P.charcoal,false,500)}
-          <div style={{marginTop:12,marginBottom:10}}>{lbl("Tipo de sesión")}</div>
-          <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:14}}>{["Pilates mat","Pilates reformer","Yoga vinyasa","Yoga yin","Yoga restaurativo","Yoga ashtanga","Respiración","Otro"].map(t=><Chip key={t} active={pyType===t} onClick={()=>setPyType(t)} color={P.sage}>{t}</Chip>)}</div>
-          <Slider value={pyDuration} onChange={setPyDuration} min={15} max={90} lbl="Duración (min)" color={P.sage}/>
-          <Slider value={pyIntensity} onChange={setPyIntensity} min={1} max={10} lbl="Intensidad" color={P.sage}/>
-          <TA value={pyNotes} onChange={setPyNotes} placeholder="¿Cómo se sintió?" rows={2}/>
+          <div style={{marginTop:14}}>
+            {pyVideos.length>0?(
+              <div>
+                {lbl("Elegí tu clase de hoy")}
+                {pyVideos.map(v=>(
+                  <div key={v.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:selectedVideo?.id===v.id?P.sage+"20":P.parchment,borderRadius:10,padding:"10px 14px",marginBottom:8,border:`1px solid ${selectedVideo?.id===v.id?P.sage:P.sand}`,cursor:"pointer"}} onClick={()=>setSelectedVideo(v)}>
+                    <div>
+                      <div style={{fontSize:13,color:P.charcoal,fontWeight:selectedVideo?.id===v.id?500:300}}>{v.name}</div>
+                      <div style={{fontSize:10,color:P.sage,marginTop:2}}>{v.category}</div>
+                    </div>
+                    {selectedVideo?.id===v.id&&<span style={{color:P.sage,fontSize:16}}>✓</span>}
+                  </div>
+                ))}
+                {selectedVideo&&(
+                  <div style={{display:"flex",gap:8,marginTop:8,marginBottom:14}}>
+                    <a href={selectedVideo.url} target="_blank" rel="noopener noreferrer" style={{flex:1,padding:"11px",background:P.terracotta,color:P.white,borderRadius:10,textDecoration:"none",textAlign:"center",fontFamily:"'Playfair Display',serif",fontSize:15}}>▶ Ir al video</a>
+                    <Chip active={videoDone} onClick={()=>setVideoDone(!videoDone)} color={P.sage}>{videoDone?"✓ Hecho":"Marcar hecho"}</Chip>
+                  </div>
+                )}
+              </div>
+            ):(
+              <div style={{textAlign:"center",padding:"16px 0",color:P.sand,fontSize:13,fontStyle:"italic"}}>
+                Agregá videos en la pestaña "Videos" para elegir tu clase
+              </div>
+            )}
+            <Slider value={pyIntensity} onChange={setPyIntensity} min={1} max={10} lbl="Intensidad de la sesión" color={P.sage}/>
+            <TA value={pyNotes} onChange={setPyNotes} placeholder="¿Cómo se sintió? ¿Qué notaste?" rows={2}/>
+          </div>
         </Card>
       )}
 
+      {/* Cardio */}
       <Card>
         {serif("Cardio",15,P.charcoal,false,500)}
         <div style={{marginTop:12,marginBottom:12}}>{lbl("Tipos (podés elegir varios)")}<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{CARDIO_OPTIONS.map(t=><Chip key={t} active={!!cardioSessions.find(s=>s.type===t)} onClick={()=>toggleCardio(t)}>{t}</Chip>)}</div></div>
@@ -481,45 +391,36 @@ function WorkoutLog({onSave,existing,wasSaved}) {
       </Card>
 
       <Card>{lbl("Pasos del día")}<input type="number" value={steps} onChange={e=>setSteps(e.target.value)} placeholder="¿Cuántos pasos?" style={{width:"100%",background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:10,padding:"10px 13px",fontSize:13,color:P.charcoal}}/></Card>
+
       <Card>
         <Slider value={bodyFeel} onChange={setBodyFeel} min={1} max={10} lbl="¿Cómo se sintió el cuerpo?"/>
         <Slider value={pain} onChange={setPain} min={1} max={10} lbl="Dolor o molestia" color={P.warmGray}/>
-        <TA value={notes} onChange={setNotes} placeholder="Observaciones..."/>
+        <TA value={notes} onChange={setNotes} placeholder="Observaciones, qué notaste..."/>
       </Card>
-      <button onClick={()=>onSave({gymDay,startTime,endTime,actDone,sets,notes,bodyFeel,pain,cardioSessions,steps,pilatesYoga,pyType,pyDuration,pyIntensity,pyNotes,showGym})} style={{width:"100%",padding:"14px",background:P.terracotta,color:P.white,border:"none",borderRadius:11,fontFamily:"'Playfair Display',serif",fontSize:16,cursor:"pointer",marginBottom:8}}>Guardar movimiento</button>
+
+      <button onClick={handleSave} style={{width:"100%",padding:"14px",background:P.terracotta,color:P.white,border:"none",borderRadius:11,fontFamily:"'Playfair Display',serif",fontSize:16,cursor:"pointer",marginBottom:8}}>Guardar movimiento</button>
     </div>
   );
 }
 
 // ── NUTRITION ─────────────────────────────────────────────────────────────────
-function NutritionLog({onSave,existing,wasSaved}) {
-  const [meals,setMeals]=useState(existing?.meals||{desayuno:{food:"",time:""},almuerzo:{food:"",time:""},merienda:{food:"",time:""},cena:{food:"",time:""}});
-  const [water,setWater]=useState(existing?.water||4);
-  const [supps,setSupps]=useState(existing?.supps||[]);
-  const [inflammation,setInflammation]=useState(existing?.inflammation||"nada");
-  const [bathroom,setBathroom]=useState(existing?.bathroom||false);
-  const [sugar,setSugar]=useState(existing?.sugar||3);
-  const [extraNotes,setExtraNotes]=useState(existing?.extraNotes||"");
-  const [showMacros,setShowMacros]=useState({});
+function NutritionLog({onSave,existing,wasSaved}){
+  const[meals,setMeals]=useState(existing?.meals||{desayuno:{food:"",time:""},almuerzo:{food:"",time:""},merienda:{food:"",time:""},cena:{food:"",time:""}});
+  const[water,setWater]=useState(existing?.water||4);
+  const[supps,setSupps]=useState(existing?.supps||[]);
+  const[inflammation,setInflammation]=useState(existing?.inflammation||"nada");
+  const[bathroom,setBathroom]=useState(existing?.bathroom||false);
+  const[sugar,setSugar]=useState(existing?.sugar||3);
+  const[extraNotes,setExtraNotes]=useState(existing?.extraNotes||"");
+  const[showMacros,setShowMacros]=useState({});
 
   const SUPPS=["Enzimas digestivas","Berberina","Myo-inositol","Soporte adrenal","Ácido butírico","Proteína en polvo"];
   const togSupp=s=>setSupps(p=>p.includes(s)?p.filter(x=>x!==s):[...p,s]);
   const setMealF=(k,f,v)=>setMeals(p=>({...p,[k]:{...p[k],[f]:v}}));
 
-  return (
+  return(
     <div>
       {wasSaved&&<SavedBanner/>}
-      <Card style={{background:`linear-gradient(135deg,${P.terracotta}10,${P.sage}10)`,borderColor:P.terracotta+"30"}}>
-        <div style={{fontSize:10,letterSpacing:"0.12em",textTransform:"uppercase",color:P.terracotta,marginBottom:10}}>Tu objetivo diario</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8}}>
-          {[{l:"Kcal",v:"~1750",c:P.gold},{l:"Proteína",v:"135g",c:P.terracotta},{l:"Carbs",v:"170g",c:P.sage},{l:"Grasas",v:"60g",c:P.warmGray}].map(({l,v,c})=>(
-            <div key={l} style={{textAlign:"center",background:P.white,borderRadius:10,padding:"9px 6px"}}>
-              <div style={{fontFamily:"'Playfair Display',serif",fontSize:16,color:c,fontWeight:500}}>{v}</div>
-              <div style={{fontSize:9,color:P.warmGray,letterSpacing:"0.08em",textTransform:"uppercase",marginTop:3}}>{l}</div>
-            </div>
-          ))}
-        </div>
-      </Card>
       {Object.entries(MEAL_META).map(([k,meta],i)=>(
         <Card key={k} delay={i*0.05}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
@@ -545,24 +446,24 @@ function NutritionLog({onSave,existing,wasSaved}) {
 }
 
 // ── WELLBEING ─────────────────────────────────────────────────────────────────
-function WellbeingLog({onSave,existing,wasSaved}) {
-  const [sleepH,setSleepH]=useState(existing?.sleepH||7);
-  const [sleepQ,setSleepQ]=useState(existing?.sleepQ||5);
-  const [phone,setPhone]=useState(existing?.phone||false);
-  const [emotions,setEmotions]=useState(existing?.emotions||[]);
-  const [emotionNote,setEmotionNote]=useState(existing?.emotionNote||"");
-  const [bodyNote,setBodyNote]=useState(existing?.bodyNote||"");
-  const [win,setWin]=useState(existing?.win||"");
-  const [learned,setLearned]=useState(existing?.learned||"");
-  const [energy,setEnergy]=useState(existing?.energy||5);
-  const [procrastinated,setProcrastinated]=useState(existing?.procrastinated||false);
-  const [procrastinationNote,setProcrastinationNote]=useState(existing?.procrastinationNote||"");
-  const [procrastinationWhy,setProcrastinationWhy]=useState(existing?.procrastinationWhy||[]);
+function WellbeingLog({onSave,existing,wasSaved}){
+  const[sleepH,setSleepH]=useState(existing?.sleepH||7);
+  const[sleepQ,setSleepQ]=useState(existing?.sleepQ||5);
+  const[phone,setPhone]=useState(existing?.phone||false);
+  const[emotions,setEmotions]=useState(existing?.emotions||[]);
+  const[emotionNote,setEmotionNote]=useState(existing?.emotionNote||"");
+  const[bodyNote,setBodyNote]=useState(existing?.bodyNote||"");
+  const[win,setWin]=useState(existing?.win||"");
+  const[learned,setLearned]=useState(existing?.learned||"");
+  const[energy,setEnergy]=useState(existing?.energy||5);
+  const[procrastinated,setProcrastinated]=useState(existing?.procrastinated||false);
+  const[procrastinationNote,setProcrastinationNote]=useState(existing?.procrastinationNote||"");
+  const[procrastinationWhy,setProcrastinationWhy]=useState(existing?.procrastinationWhy||[]);
 
   const togEmotion=e=>setEmotions(p=>p.includes(e)?p.filter(x=>x!==e):[...p,e]);
   const togProcWhy=r=>setProcrastinationWhy(p=>p.includes(r)?p.filter(x=>x!==r):[...p,r]);
 
-  return (
+  return(
     <div>
       {wasSaved&&<SavedBanner/>}
       <Card>
@@ -600,11 +501,11 @@ function WellbeingLog({onSave,existing,wasSaved}) {
 }
 
 // ── CYCLE ─────────────────────────────────────────────────────────────────────
-function CycleView({cycleData,onUpdate}) {
-  const [day,setDay]=useState(cycleData?.currentDay||5);
-  const [cycleNote,setCycleNote]=useState(cycleData?.cycleNote||"");
+function CycleView({cycleData,onUpdate}){
+  const[day,setDay]=useState(cycleData?.currentDay||5);
+  const[cycleNote,setCycleNote]=useState(cycleData?.cycleNote||"");
   const phase=getPhase(day);
-  return (
+  return(
     <div style={{animation:"fadeUp 0.4s ease"}}>
       <Card>
         <div style={{textAlign:"center",paddingBottom:16}}>
@@ -618,23 +519,94 @@ function CycleView({cycleData,onUpdate}) {
           <div style={{fontSize:13,color:P.charcoal,lineHeight:1.6,fontWeight:300}}>{phase.foods}</div>
         </div>
         <Slider value={day} onChange={setDay} min={1} max={28} lbl="Día del ciclo" color={phase.color}/>
-        <div style={{display:"flex",gap:3,flexWrap:"wrap",marginBottom:16}}>{Array.from({length:28},(_,i)=>{const d=i+1,ph=getPhase(d),active=d===day;return <button key={d} onClick={()=>setDay(d)} style={{width:23,height:23,borderRadius:"50%",border:active?`2px solid ${ph.color}`:"none",background:active?ph.color:ph.color+"30",cursor:"pointer",fontSize:9,color:active?P.white:P.charcoal,fontWeight:active?600:300}}>{d}</button>;})}</div>
-        <div style={{marginBottom:14}}>{lbl("Anotación (dolor, síntomas, sensaciones)")}<TA value={cycleNote} onChange={setCycleNote} placeholder="Ej: fue doloroso, más hambre, muy sensible..." rows={2}/></div>
+        <div style={{display:"flex",gap:3,flexWrap:"wrap",marginBottom:16}}>{Array.from({length:28},(_,i)=>{const d=i+1,ph=getPhase(d),active=d===day;return<button key={d} onClick={()=>setDay(d)} style={{width:23,height:23,borderRadius:"50%",border:active?`2px solid ${ph.color}`:"none",background:active?ph.color:ph.color+"30",cursor:"pointer",fontSize:9,color:active?P.white:P.charcoal,fontWeight:active?600:300}}>{d}</button>;})}</div>
+        <div style={{marginBottom:14}}>{lbl("Anotación (dolor, síntomas)")}<TA value={cycleNote} onChange={setCycleNote} placeholder="Ej: fue doloroso, más hambre..." rows={2}/></div>
         <button onClick={()=>onUpdate({currentDay:day,cycleNote,updatedAt:today()})} style={{width:"100%",padding:"13px",background:P.terracotta,color:P.white,border:"none",borderRadius:11,fontFamily:"'Playfair Display',serif",fontSize:16,cursor:"pointer"}}>Guardar ciclo</button>
       </Card>
     </div>
   );
 }
 
+// ── ASTROLOGY ─────────────────────────────────────────────────────────────────
+function AstrologyView({cycleData}){
+  const[reading,setReading]=useState(null);
+  const[loading,setLoading]=useState(false);
+  const phase=getPhase(cycleData?.currentDay||5);
+
+  const generate=async()=>{
+    setLoading(true);
+    const dateStr=new Date().toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+    const prompt=`Sos una astrologa profunda y sabia, al estilo de The Pattern — íntima, precisa, poética pero concreta.
+
+Carta natal de Julieta:
+- Sol en Géminis: curiosidad, dualidad, comunicación, necesidad de estimulación mental
+- Ascendente en Aries: impulso, iniciativa, energía que arranca antes de pensar
+- Luna en Piscis: mundo emocional profundo, sensibilidad extrema, conexión con lo invisible
+
+Hoy es ${dateStr}. Fase del ciclo: ${phase.name} (día ${cycleData?.currentDay||5}).
+
+Dále una lectura astrológica de HOY. Mencioná qué energías están activas basándote en el mes, la estación y el cielo. Conectalo con su carta natal. Sé específica sobre cómo impacta en ella.
+
+Estructura:
+1. La energía disponible hoy
+2. Tu carta habla — cómo su carta interactúa con esto
+3. Un portal — una acción o intención concreta
+
+Máximo 200 palabras. Íntima, directa.`;
+
+    const r=await callAI("Sos una astrologa profunda. Respondés en español rioplatense.",prompt,600);
+    setReading(r);setLoading(false);
+  };
+
+  return(
+    <div style={{animation:"fadeUp 0.4s ease"}}>
+      <Card style={{background:`linear-gradient(135deg,${P.indigo}15,${P.gold}08)`,borderColor:P.indigo+"30"}}>
+        <div style={{fontSize:9,letterSpacing:"0.2em",textTransform:"uppercase",color:P.indigo,marginBottom:12}}>Tu carta natal</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:14}}>
+          {[{l:"Sol",v:"Géminis ♊",c:P.gold},{l:"Ascendente",v:"Aries ♈",c:P.terracotta},{l:"Luna",v:"Piscis ♓",c:P.indigo}].map(({l,v,c})=>(
+            <div key={l} style={{textAlign:"center",background:P.white,borderRadius:10,padding:"10px 8px"}}>
+              <div style={{fontFamily:"'Playfair Display',serif",fontSize:15,color:c,marginBottom:3}}>{v}</div>
+              <div style={{fontSize:9,color:P.warmGray,letterSpacing:"0.08em",textTransform:"uppercase"}}>{l}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{fontSize:11,color:P.warmGray,lineHeight:1.6,fontStyle:"italic"}}>La mente que conecta puntos invisibles · El espíritu que arranca sin permiso · El alma que siente todo</div>
+      </Card>
+
+      <Card>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:reading?14:0}}>
+          {serif("Lectura de hoy",16,P.charcoal,false,500)}
+          <button onClick={generate} disabled={loading} style={{padding:"8px 16px",background:loading?P.sand:P.indigo,color:P.white,border:"none",borderRadius:20,fontSize:12,cursor:loading?"default":"pointer",fontFamily:"'Jost',sans-serif",fontWeight:500}}>
+            {loading?"Leyendo...":"✦ Consultar"}
+          </button>
+        </div>
+        {loading&&<Loader/>}
+        {reading&&!loading&&<div style={{fontFamily:"'Playfair Display',serif",fontSize:14,lineHeight:1.9,color:P.charcoal,whiteSpace:"pre-line",fontStyle:"italic"}}>{reading}</div>}
+        {!reading&&!loading&&<div style={{textAlign:"center",padding:"20px 0",color:P.sand,fontSize:13,fontStyle:"italic"}}>Tocá "Consultar" para ver qué dice el cielo hoy</div>}
+      </Card>
+
+      <Card style={{background:P.indigo+"08",borderColor:P.indigo+"20"}}>
+        <div style={{fontSize:9,letterSpacing:"0.12em",textTransform:"uppercase",color:P.indigo,marginBottom:10}}>Tu arquetipo en fase {phase.name}</div>
+        <div style={{fontFamily:"'Playfair Display',serif",fontSize:14,lineHeight:1.7,color:P.charcoal}}>
+          {phase.key==="menstrual"&&"La Bruja. La que sabe sin explicar. La que descansa sin culpa. La que suelta lo que ya no sirve."}
+          {phase.key==="folicular"&&"La Doncella. La que empieza. La que ve posibilidades donde otros ven problemas."}
+          {phase.key==="ovulatoria"&&"La Madre. La que da. La que conecta. La que irradia sin esfuerzo."}
+          {phase.key==="lutea"&&"La Hechicera. La que siente todo. La que necesita verdad. La que no tolera lo superficial."}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
 // ── CHAT ──────────────────────────────────────────────────────────────────────
-function AIChat({todayEntry,cycleData}) {
-  const [msgs,setMsgs]=useState([{role:"assistant",content:"Hola Juli. ¿Qué querés explorar hoy?"}]);
-  const [input,setInput]=useState("");
-  const [loading,setLoading]=useState(false);
+function AIChat({todayEntry,cycleData}){
+  const[msgs,setMsgs]=useState([{role:"assistant",content:"Hola Juli. ¿Qué querés explorar hoy?"}]);
+  const[input,setInput]=useState("");
+  const[loading,setLoading]=useState(false);
   const bottomRef=useRef(null);
   useEffect(()=>{bottomRef.current?.scrollIntoView({behavior:"smooth"});},[msgs]);
 
-  const QUICK=["¿Qué patrón estás viendo?","Ayudame a ver esto diferente","Estoy procrastinando","¿Cómo conecto con lo que quiero ser?","Quiero explorar algo","¿Y si lo intento de otra manera?"];
+  const QUICK=["¿Qué patrón estás viendo?","Ayudame a ver esto diferente","Estoy procrastinando","¿Cómo conecto con lo que quiero ser?","¿Y si lo intento de otra manera?"];
 
   const send=async(text)=>{
     if(!text.trim()) return;
@@ -642,12 +614,13 @@ function AIChat({todayEntry,cycleData}) {
     const phase=cycleData?.currentDay?getPhase(cycleData.currentDay):null;
     const ctx=`Contexto: ${phase?`Fase ${phase.name} día ${cycleData.currentDay}.`:""} ${todayEntry?.morning?.wakeupFeel?.length?`Despertó: ${todayEntry.morning.wakeupFeel.join(", ")}.`:""} ${todayEntry?.wellbeing?.emotions?.length?`Emociones: ${todayEntry.wellbeing.emotions.join(", ")}.`:""}`;
     const history=msgs.slice(-6).map(m=>({role:m.role,content:m.content}));
-    const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:600,system:JULI_CTX+"\n\n"+ctx,messages:[...history,{role:"user",content:text}]})});
+    const apiKey=process.env.REACT_APP_ANTHROPIC_KEY;
+    const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:600,system:JULI_CTX+"\n\n"+ctx,messages:[...history,{role:"user",content:text}]})});
     const d=await r.json();
     setMsgs(p=>[...p,{role:"assistant",content:d.content?.[0]?.text||"Seguimos."}]);setLoading(false);
   };
 
-  return (
+  return(
     <div style={{display:"flex",flexDirection:"column",height:"calc(100vh - 150px)"}}>
       <div style={{display:"flex",gap:7,flexWrap:"wrap",paddingBottom:12}}>{QUICK.map(q=><button key={q} onClick={()=>send(q)} style={{padding:"5px 11px",borderRadius:20,border:`1px solid ${P.sand}`,background:P.white,color:P.warmGray,fontSize:11,cursor:"pointer",fontFamily:"'Jost',sans-serif"}}>{q}</button>)}</div>
       <div style={{flex:1,overflowY:"auto",paddingRight:4}}>
@@ -668,19 +641,18 @@ function AIChat({todayEntry,cycleData}) {
 }
 
 // ── FEEDBACK ──────────────────────────────────────────────────────────────────
-function FeedbackView({entry}) {
-  const [feedback,setFeedback]=useState(null);
-  const [loading,setLoading]=useState(false);
+function FeedbackView({entry}){
+  const[feedback,setFeedback]=useState(null);
+  const[loading,setLoading]=useState(false);
 
   const generate=async()=>{
     if(!entry) return;
     setLoading(true);
-    const prompt=`Analizá el día completo de Julieta como el micelio — ayudala a ver conexiones, patrones, rutas nuevas. NO genérico. NO paternalista.
+    const prompt=`Analizá el día completo de Julieta como el micelio. NO genérico. NO paternalista.
 
-Estructura en 3 partes:
-1. **Lo que resonó hoy** — algo concreto
-2. **Una conexión que quizás no viste** — conectá datos: despertar, emociones, movimiento, comida, procrastinación. Abrí una puerta, no des respuesta.
-3. **Una pregunta o frase** — que la conecte con la Julieta que construye. Poética pero concreta.
+1. Lo que resonó hoy — algo concreto
+2. Una conexión que quizás no viste — conectá datos: despertar, emociones, movimiento, comida, procrastinación
+3. Una pregunta o frase — que la conecte con la Julieta que construye
 
 Datos del día:
 ${JSON.stringify(entry,null,2)}`;
@@ -688,13 +660,13 @@ ${JSON.stringify(entry,null,2)}`;
     setFeedback(r);setLoading(false);
   };
 
-  if(!entry) return <div style={{textAlign:"center",padding:"50px 20px"}}>{serif("Completá tu día primero",18,P.warmGray,true)}<div style={{marginTop:8,fontSize:12,color:P.sand}}>Registrá algo en Hoy para recibir tu feedback</div></div>;
+  if(!entry) return<div style={{textAlign:"center",padding:"50px 20px"}}>{serif("Completá tu día primero",18,P.warmGray,true)}</div>;
 
-  return (
+  return(
     <div style={{animation:"fadeUp 0.4s ease"}}>
       <Card style={{background:`linear-gradient(135deg,${P.terracotta}10,${P.sage}10)`,borderColor:P.terracotta+"30"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:feedback?14:0}}>
-          <div style={{fontSize:10,letterSpacing:"0.15em",textTransform:"uppercase",color:P.terracotta}}>Tu feedback de hoy</div>
+          <div style={{fontSize:10,letterSpacing:"0.15em",textTransform:"uppercase",color:P.terracotta}}>Tu feedback</div>
           <button onClick={generate} disabled={loading} style={{padding:"8px 16px",background:loading?P.sand:P.terracotta,color:P.white,border:"none",borderRadius:20,fontSize:12,cursor:loading?"default":"pointer",fontFamily:"'Jost',sans-serif",fontWeight:500}}>
             {loading?"Procesando...":feedback?"↺ Regenerar":"✦ Generar"}
           </button>
@@ -704,10 +676,10 @@ ${JSON.stringify(entry,null,2)}`;
         {!feedback&&!loading&&<div style={{textAlign:"center",padding:"16px 0",color:P.sand,fontSize:13,fontStyle:"italic"}}>Tocá "Generar" cuando hayas completado tu día</div>}
       </Card>
       <Card>
-        <div style={{fontSize:10,letterSpacing:"0.12em",textTransform:"uppercase",color:P.warmGray,marginBottom:14}}>Resumen del día</div>
+        <div style={{fontSize:10,letterSpacing:"0.12em",textTransform:"uppercase",color:P.warmGray,marginBottom:14}}>Resumen</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
           {[
-            {l:"Entreno",v:entry.workout?.gymDay?`Día ${entry.workout.gymDay} ✓`:entry.workout?.pyType||"—"},
+            {l:"Entreno",v:entry.workout?.gymDay?`Gym día ${entry.workout.gymDay}`:entry.workout?.selectedVideo?.name||entry.workout?.sessionType||"—"},
             {l:"Agua",v:entry.nutrition?.water?`${entry.nutrition.water} vasos`:"—"},
             {l:"Sueño",v:entry.wellbeing?.sleepH?`${entry.wellbeing.sleepH}h`:"—"},
             {l:"Pasos",v:entry.workout?.steps||"—"},
@@ -726,16 +698,82 @@ ${JSON.stringify(entry,null,2)}`;
   );
 }
 
+// ── WEEKLY SUMMARY ────────────────────────────────────────────────────────────
+function WeeklySummary({entries}){
+  const[summary,setSummary]=useState(null);
+  const[loading,setLoading]=useState(false);
+
+  const getLast7=()=>{
+    const days=[];
+    for(let i=6;i>=0;i--){
+      const d=new Date();d.setDate(d.getDate()-i);
+      const key=d.toISOString().split("T")[0];
+      if(entries[key]) days.push(entries[key]);
+    }
+    return days;
+  };
+
+  const generate=async()=>{
+    const last7=getLast7();
+    if(last7.length===0){setSummary("Completá al menos un día para ver tu resumen.");return;}
+    setLoading(true);
+    const r=await callAI(JULI_CTX,`Analizá la semana de Julieta y mostrá patrones reales. Como el micelio — conexiones que ella quizás no ve.\n\n1. Patrones que emergen\n2. Lo que está creciendo\n3. Una pregunta para la semana que viene\n\nDatos:\n${JSON.stringify(last7,null,2)}`,600);
+    setSummary(r);setLoading(false);
+  };
+
+  const last7=getLast7();
+  const metrics=[
+    {l:"Agua promedio",v:last7.filter(e=>e.nutrition?.water).length?Math.round(last7.filter(e=>e.nutrition?.water).reduce((a,e)=>a+e.nutrition.water,0)/last7.filter(e=>e.nutrition?.water).length)+" vasos":"—",c:P.sage},
+    {l:"Sueño promedio",v:last7.filter(e=>e.wellbeing?.sleepH).length?Math.round(last7.filter(e=>e.wellbeing?.sleepH).reduce((a,e)=>a+e.wellbeing.sleepH,0)/last7.filter(e=>e.wellbeing?.sleepH).length*10)/10+"h":"—",c:P.warmGray},
+    {l:"Días entrené",v:last7.filter(e=>e.workout?.sessionType).length+"/7",c:P.terracotta},
+    {l:"Ritual mañana",v:last7.filter(e=>e.morning?.ritualDone).length+"/7",c:P.gold},
+    {l:"Procrastinación",v:last7.filter(e=>e.wellbeing?.procrastinated).length+" días",c:P.warmGray},
+    {l:"Días registrados",v:last7.length+"/7",c:P.sage},
+  ];
+
+  return(
+    <div style={{animation:"fadeUp 0.4s ease"}}>
+      <Card>
+        <div style={{fontSize:9,letterSpacing:"0.15em",textTransform:"uppercase",color:P.terracotta,marginBottom:14}}>Últimos 7 días</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+          {metrics.map(({l,v,c})=>(
+            <div key={l} style={{background:P.parchment,borderRadius:10,padding:"10px 13px"}}>
+              <div style={{fontSize:9,letterSpacing:"0.1em",textTransform:"uppercase",color:P.warmGray,marginBottom:4}}>{l}</div>
+              <span style={{fontFamily:"'Playfair Display',serif",fontSize:16,color:c,fontWeight:500}}>{v}</span>
+            </div>
+          ))}
+        </div>
+        {last7.some(e=>e.nutrition?.water)&&(
+          <div style={{marginBottom:16}}>
+            <div style={{fontSize:10,letterSpacing:"0.1em",textTransform:"uppercase",color:P.warmGray,marginBottom:8}}>Agua esta semana</div>
+            <div style={{display:"flex",gap:4,alignItems:"flex-end",height:50}}>
+              {last7.map((e,i)=>{const w=e.nutrition?.water||0;const h=Math.max(4,(w/12)*50);const color=w>=6?P.sage:w>=4?P.sand:P.terracottaLight;return<div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3}}><div style={{width:"100%",height:h,background:color,borderRadius:4}}/><span style={{fontSize:9,color:P.warmGray}}>{w||"—"}</span></div>;})}
+            </div>
+          </div>
+        )}
+      </Card>
+      <Card>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:summary?14:0}}>
+          {serif("Análisis semanal",16,P.charcoal,false,500)}
+          <button onClick={generate} disabled={loading} style={{padding:"8px 16px",background:loading?P.sand:P.terracotta,color:P.white,border:"none",borderRadius:20,fontSize:12,cursor:loading?"default":"pointer",fontFamily:"'Jost',sans-serif",fontWeight:500}}>{loading?"Analizando...":"✦ Generar"}</button>
+        </div>
+        {loading&&<Loader/>}
+        {summary&&!loading&&<div style={{fontFamily:"'Playfair Display',serif",fontSize:14,lineHeight:1.9,color:P.charcoal,whiteSpace:"pre-line",fontStyle:"italic"}}>{summary}</div>}
+        {!summary&&!loading&&<div style={{textAlign:"center",padding:"16px 0",color:P.sand,fontSize:13,fontStyle:"italic"}}>Tocá "Generar" para ver tus patrones</div>}
+      </Card>
+    </div>
+  );
+}
+
 // ── HISTORY ───────────────────────────────────────────────────────────────────
-function HistoryView({entries}) {
+function HistoryView({entries}){
   const sorted=Object.values(entries).filter(e=>e.date).sort((a,b)=>b.date.localeCompare(a.date));
-  if(!sorted.length) return <div style={{textAlign:"center",padding:"60px 20px"}}>{serif("Tu historia comienza hoy",20,P.warmGray,true)}</div>;
-  return <div>{sorted.map((e,i)=>(
+  if(!sorted.length) return<div style={{textAlign:"center",padding:"60px 20px"}}>{serif("Tu historia comienza hoy",20,P.warmGray,true)}</div>;
+  return<div>{sorted.map((e,i)=>(
     <Card key={e.date} delay={i*0.05}>
       <div style={{fontFamily:"'Playfair Display',serif",fontSize:15,fontWeight:500,textTransform:"capitalize",marginBottom:8}}>{new Date(e.date+"T12:00:00").toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"})}</div>
       <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-        {e.workout?.gymDay&&<span style={{fontSize:11,color:P.terracotta}}>✦ Gym día {e.workout.gymDay}</span>}
-        {e.workout?.pyType&&<span style={{fontSize:11,color:P.sage}}>✦ {e.workout.pyType}</span>}
+        {e.workout?.sessionType&&<span style={{fontSize:11,color:P.terracotta}}>✦ {e.workout.sessionType==="gym"?`Gym día ${e.workout.gymDay}`:e.workout.sessionType}</span>}
         {e.workout?.steps&&<span style={{fontSize:11,color:P.warmGray}}>👣{e.workout.steps}</span>}
         {e.nutrition?.water&&<span style={{fontSize:11,color:P.sage}}>💧{e.nutrition.water}</span>}
         {e.wellbeing?.sleepH&&<span style={{fontSize:11,color:P.warmGray}}>🌙{e.wellbeing.sleepH}h</span>}
@@ -749,13 +787,14 @@ function HistoryView({entries}) {
 }
 
 // ── MAIN ──────────────────────────────────────────────────────────────────────
-export default function App() {
-  const [tab,setTab]=useState("manana");
-  const [subTab,setSubTab]=useState("entrenamiento");
-  const [appData,setAppData]=useState({entries:{},cycle:{currentDay:5}});
-  const [mantras,setMantras]=useState([]);
-  const [saved,setSaved]=useState({morning:false,workout:false,nutrition:false,wellbeing:false});
-  const [showMantras,setShowMantras]=useState(false);
+export default function App(){
+  const[tab,setTab]=useState("manana");
+  const[subTab,setSubTab]=useState("entrenamiento");
+  const[appData,setAppData]=useState({entries:{},cycle:{currentDay:5}});
+  const[mantras,setMantras]=useState([]);
+  const[videos,setVideos]=useState([]);
+  const[saved,setSaved]=useState({morning:false,workout:false,nutrition:false,wellbeing:false});
+  const[showMantras,setShowMantras]=useState(false);
 
   useEffect(()=>{
     loadData().then(d=>{
@@ -766,6 +805,7 @@ export default function App() {
       }
     });
     setMantras(loadMantras());
+    setVideos(loadVideos());
   },[]);
 
   const todayEntry=appData.entries?.[today()]||{};
@@ -773,23 +813,36 @@ export default function App() {
   const todayFmt=new Date().toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"});
 
   const persist=async(nd)=>{await saveData(nd);};
+
   const saveSection=async(section,data)=>{
     const updated={...appData,entries:{...appData.entries,[today()]:{...todayEntry,[section]:data,date:today()}}};
     setAppData(updated);setSaved(p=>({...p,[section]:true}));await persist(updated);
   };
-  const updateMantras=(m)=>{setMantras(m);saveMantras(m);};
 
-  const TABS=[{k:"manana",l:"Mañana"},{k:"hoy",l:"Hoy"},{k:"chat",l:"Chat"},{k:"ciclo",l:"Ciclo"},{k:"astro",l:"Astro"},{k:"feedback",l:"Feedback"},{k:"semana",l:"Semana"},{k:"historial",l:"Hist"}];
+  const updateMantras=(m)=>{setMantras(m);saveMantras(m);};
+  const updateVideos=(v)=>{setVideos(v);saveVideos(v);};
+
+  const TABS=[
+    {k:"manana",l:"Mañana"},
+    {k:"hoy",l:"Hoy"},
+    {k:"chat",l:"Chat"},
+    {k:"ciclo",l:"Ciclo"},
+    {k:"astro",l:"Astro"},
+    {k:"feedback",l:"Feedback"},
+    {k:"semana",l:"Semana"},
+    {k:"videos",l:"Videos"},
+    {k:"historial",l:"Hist"},
+  ];
   const SUBTABS=[{k:"entrenamiento",l:"Movimiento",done:saved.workout},{k:"nutricion",l:"Nutrición",done:saved.nutrition},{k:"bienestar",l:"Bienestar",done:saved.wellbeing}];
 
-  return (
+  return(
     <div style={{minHeight:"100vh",background:P.cream,maxWidth:480,margin:"0 auto"}}>
       <style>{GS}</style>
       <div style={{background:P.white,borderBottom:`1px solid ${P.parchment}`,padding:"18px 20px 0",position:"sticky",top:0,zIndex:10,boxShadow:"0 2px 14px rgba(40,38,31,0.06)"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
           <div>
-            <div style={{fontSize:9,letterSpacing:"0.2em",textTransform:"uppercase",color:P.terracotta,marginBottom:3}}>Somos Marítima</div>
-            {serif("Mi Sistema",24,P.charcoal,false,500)}
+            <div style={{fontSize:9,letterSpacing:"0.2em",textTransform:"uppercase",color:P.terracotta,marginBottom:3}}>Mi sistema personal</div>
+            {serif("Julieta",24,P.charcoal,false,500)}
             <div style={{marginTop:3,fontSize:11,color:P.warmGray,textTransform:"capitalize"}}>{todayFmt}</div>
           </div>
           <div style={{textAlign:"right"}}>
@@ -813,6 +866,7 @@ export default function App() {
             <MorningSection data={todayEntry?.morning} onChange={d=>saveSection("morning",d)} mantras={mantras} cycleDay={appData.cycle?.currentDay||5}/>
           </div>
         )}
+
         {tab==="hoy"&&(
           <div>
             <div style={{display:"flex",gap:8,marginBottom:16}}>
@@ -820,16 +874,18 @@ export default function App() {
                 {st.l}{st.done&&<span style={{position:"absolute",top:4,right:6,width:6,height:6,borderRadius:"50%",background:P.sage}}/>}
               </button>)}
             </div>
-            {subTab==="entrenamiento"&&<WorkoutLog onSave={d=>saveSection("workout",d)} existing={todayEntry?.workout} wasSaved={saved.workout}/>}
+            {subTab==="entrenamiento"&&<WorkoutLog onSave={d=>saveSection("workout",d)} existing={todayEntry?.workout} wasSaved={saved.workout} videos={videos}/>}
             {subTab==="nutricion"&&<NutritionLog onSave={d=>saveSection("nutrition",d)} existing={todayEntry?.nutrition} wasSaved={saved.nutrition}/>}
             {subTab==="bienestar"&&<WellbeingLog onSave={d=>saveSection("wellbeing",d)} existing={todayEntry?.wellbeing} wasSaved={saved.wellbeing}/>}
           </div>
         )}
+
         {tab==="chat"&&<AIChat todayEntry={todayEntry} cycleData={appData.cycle}/>}
         {tab==="ciclo"&&<CycleView cycleData={appData.cycle} onUpdate={d=>{const u={...appData,cycle:d};setAppData(u);persist(u);}}/>}
         {tab==="astro"&&<AstrologyView cycleData={appData.cycle}/>}
         {tab==="feedback"&&<FeedbackView entry={Object.keys(todayEntry).length>0?todayEntry:null}/>}
         {tab==="semana"&&<WeeklySummary entries={appData.entries||{}}/>}
+        {tab==="videos"&&<VideoLibrary videos={videos} onUpdate={updateVideos}/>}
         {tab==="historial"&&<HistoryView entries={appData.entries||{}}/>}
       </div>
     </div>

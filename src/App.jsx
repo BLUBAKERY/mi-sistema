@@ -72,7 +72,7 @@ const GS = `
 `;
 
 const today = () => new Date().toISOString().split("T")[0];
-const loadData = async () => { try { const r = localStorage.getItem(SK); return r ? JSON.parse(r) : {}; } catch { return {}; } };; return r ? JSON.parse(r.value) : {}; } catch { return {}; } };
+const loadData = async () => { try { const r = localStorage.getItem(SK); return r ? JSON.parse(r) : {}; } catch { return {}; } }
 const saveData = async (d) => { try { localStorage.setItem(SK, JSON.stringify(d)); } catch {} };; } catch {} };
 const callAI = async (system, user) => {
   const r = await fetch("https://api.anthropic.com/v1/messages", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,system,messages:[{role:"user",content:user}]}) });

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 const SK = "maritima_v6";
 const SK_MANTRAS = "maritima_mantras";
@@ -26,8 +26,8 @@ const MEAL_META={
   cena:{label:"Cena",icon:"🌙",target:"~35g proteína · ~20g carbs · ~15g grasa",example:"150g salmón + vegetales + AOVE",placeholder:"Más liviana en carbs."},
 };
 const CARDIO_OPTIONS=["Cinta","Bici","Caminata","Trote","Elíptica","Natación","Otro"];
-const MORNING_OPTIONS=["Estiramientos","Masaje facial","Respiraciones","Drenaje linfático","TRE","Meditación","Journaling","Tapping"];
 const WAKEUP_FEELINGS=["tranquila","acelerada","ansiosa","descansada","confundida","motivada","pesada","liviana","triste","presente"];
+const MORNING_RITUALS=["Estiramientos","Masaje facial","Respiraciones","Drenaje linfático","TRE","Meditación","Journaling","Tapping"];
 const EMOTIONS=["tranquila","ansiosa","motivada","cansada","triste","plena","irritada","agradecida","confundida","conectada","urgencia","libre"];
 const PROC_REASONS=["Abrumamiento","Perfeccionismo","Miedo al fracaso","Falta de energía","Distracción (redes)","No sé por dónde empezar","Urgencia financiera","Otro"];
 
@@ -47,110 +47,48 @@ const GS=`
 
 const today=()=>new Date().toISOString().split("T")[0];
 
-// Storage — persists everything
-const loadData=async()=>{try{const r=localStorage.getItem(SK);return r?JSON.parse(r):{};}catch{return{};}};
-const saveData=async(d)=>{try{localStorage.setItem(SK,JSON.stringify(d));}catch{}};
-const loadMantras=()=>{try{const r=localStorage.getItem(SK_MANTRAS);return r?JSON.parse(r):[];}catch{return[];}};
-const saveMantras=(m)=>{try{localStorage.setItem(SK_MANTRAS,JSON.stringify(m));}catch{}};
-const loadVideos=()=>{try{const r=localStorage.getItem(SK_VIDEOS);return r?JSON.parse(r):[];}catch{return[];}};
-const saveVideos=(v)=>{try{localStorage.setItem(SK_VIDEOS,JSON.stringify(v));}catch{}};
+// ── STORAGE — todas las claves separadas para mayor resiliencia ───────────────
+const LS={
+  get:(key)=>{try{const r=localStorage.getItem(key);return r?JSON.parse(r):null;}catch{return null;}},
+  set:(key,val)=>{try{localStorage.setItem(key,JSON.stringify(val));}catch{}},
+};
 
-// AI call with proper headers using env variable
+const loadAppData=()=>LS.get(SK)||{entries:{},cycle:{currentDay:5}};
+const saveAppData=(d)=>LS.set(SK,d);
+const loadMantras=()=>LS.get(SK_MANTRAS)||[];
+const saveMantras=(m)=>LS.set(SK_MANTRAS,m);
+const loadVideos=()=>LS.get(SK_VIDEOS)||[];
+const saveVideos=(v)=>LS.set(SK_VIDEOS,v);
+
+// ── AI ────────────────────────────────────────────────────────────────────────
 const callAI=async(system,user,maxTokens=700)=>{
   try{
-    const apiKey=process.env.REACT_APP_ANTHROPIC_KEY;
-    const r=await fetch("https://api.anthropic.com/v1/messages",{
+    const r=await fetch("/api/chat",{
       method:"POST",
-      headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01"},
+      headers:{"Content-Type":"application/json"},
       body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:maxTokens,system,messages:[{role:"user",content:user}]})
     });
     const d=await r.json();
     return d.content?.[0]?.text||"";
-  }catch(e){console.error(e);return "";}
+  }catch(e){return"";}
 };
 
 const JULI_CTX=`Sos el agente personal de bienestar de Julieta, 37 años, argentina, instructora de Pilates y emprendedora. Carta natal: Sol Géminis, Ascendente Aries, Luna Piscis. Nacida el 6/6/1988, 3:30am, Olavarría, Buenos Aires.
 
-Tu rol es como el micelio: ayudala a ver conexiones, patrones, rutas nuevas. No das consejos directivos. Hacés preguntas que abren. Podés apoyarte en neurociencia, espiritualidad, astrología, Human Design, autores como Clarissa Pinkola Estés, Glennon Doyle, Rumi, Van der Kolk.
+Tu rol es como el micelio: ayudala a ver conexiones, patrones, rutas nuevas. No das consejos directivos. Hacés preguntas que abren. Podés citar a Clarissa Pinkola Estés, Glennon Doyle, Rumi, Van der Kolk, Gabor Maté.
 
 Nunca sos paternalista. Ella elige. Vos abrís caminos.
 Hablale de vos, español rioplatense. Directa, honesta, cálida.`;
 
-// UI primitives
+// ── UI ────────────────────────────────────────────────────────────────────────
 const serif=(txt,sz=16,color=P.charcoal,italic=false,weight=400)=><span style={{fontFamily:"'Playfair Display',serif",fontSize:sz,color,fontStyle:italic?"italic":"normal",fontWeight:weight}}>{txt}</span>;
 const lbl=(txt)=><div style={{fontSize:10,letterSpacing:"0.12em",textTransform:"uppercase",color:P.warmGray,marginBottom:7,fontWeight:400}}>{txt}</div>;
 const Card=({children,style={},delay=0})=><div style={{background:P.white,borderRadius:16,padding:"17px 19px",marginBottom:12,border:`1px solid ${P.parchment}`,animation:`fadeUp 0.4s ease ${delay}s both`,boxShadow:"0 1px 8px rgba(40,38,31,0.05)",...style}}>{children}</div>;
 const Chip=({active,onClick,children,color=P.terracotta})=><button onClick={onClick} style={{padding:"6px 12px",borderRadius:20,border:`1px solid ${active?color:P.sand}`,background:active?color:"transparent",color:active?P.white:P.warmGray,fontSize:12,cursor:"pointer",fontFamily:"'Jost',sans-serif",fontWeight:active?500:300,transition:"all 0.18s",marginBottom:4}}>{children}</button>;
 const Slider=({value,onChange,min=1,max=10,lbl:l,color=P.terracotta})=><div style={{marginBottom:14}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}><span style={{fontSize:10,letterSpacing:"0.12em",textTransform:"uppercase",color:P.warmGray}}>{l}</span><span style={{fontFamily:"'Playfair Display',serif",fontSize:14,color}}>{value}</span></div><input type="range" min={min} max={max} value={value} onChange={e=>onChange(+e.target.value)} style={{width:"100%",accentColor:color,cursor:"pointer"}}/></div>;
 const TA=({value,onChange,placeholder,rows=3})=><textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={rows} style={{width:"100%",background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:10,padding:"10px 13px",fontSize:13,color:P.charcoal,resize:"none",lineHeight:1.6,fontWeight:300}}/>;
-const SavedBanner=()=><div style={{background:P.sage+"25",border:`1px solid ${P.sage}50`,borderRadius:10,padding:"9px 14px",marginBottom:14,display:"flex",alignItems:"center",gap:8}}><span style={{color:P.sage}}>✓</span><span style={{fontSize:12,color:P.sage}}>Guardado</span></div>;
 const Loader=()=><div style={{display:"flex",gap:4,padding:"8px 0"}}>{[0,0.2,0.4].map((d,i)=><div key={i} style={{width:8,height:8,borderRadius:"50%",background:P.sand,animation:`pulse 1s ease ${d}s infinite`}}/>)}</div>;
-
-// Extract YouTube ID
-const getYouTubeId=(url)=>{
-  const match=url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/);
-  return match?match[1]:null;
-};
-
-// ── VIDEO LIBRARY ─────────────────────────────────────────────────────────────
-function VideoLibrary({videos,onUpdate}){
-  const[name,setName]=useState("");
-  const[url,setUrl]=useState("");
-  const[cat,setCat]=useState("Yoga");
-  const CATS=["Yoga","Pilates","Meditación","Respiración","Movilidad","Otro"];
-
-  const add=()=>{
-    if(!name.trim()||!url.trim()) return;
-    const ytId=getYouTubeId(url);
-    const newV={id:Date.now(),name:name.trim(),url:url.trim(),ytId,category:cat};
-    onUpdate([...videos,newV]);
-    setName("");setUrl("");
-  };
-  const remove=(id)=>onUpdate(videos.filter(v=>v.id!==id));
-
-  return(
-    <div>
-      <Card>
-        {serif("Mi biblioteca de videos",15,P.charcoal,false,500)}
-        <div style={{marginTop:14,marginBottom:10}}>
-          {lbl("Categoría")}
-          <div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:12}}>
-            {CATS.map(c=><Chip key={c} active={cat===c} onClick={()=>setCat(c)} color={P.sage}>{c}</Chip>)}
-          </div>
-          {lbl("Nombre de la clase")}
-          <input value={name} onChange={e=>setName(e.target.value)} placeholder="Ej: Yin yoga 45min, Pilates core..." style={{width:"100%",background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:10,padding:"10px 13px",fontSize:13,color:P.charcoal,marginBottom:10}}/>
-          {lbl("Link de YouTube")}
-          <input value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://youtube.com/watch?v=..." style={{width:"100%",background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:10,padding:"10px 13px",fontSize:13,color:P.charcoal,marginBottom:12}}/>
-          <button onClick={add} disabled={!name.trim()||!url.trim()} style={{width:"100%",padding:"11px",background:P.sage,color:P.white,border:"none",borderRadius:10,fontFamily:"'Playfair Display',serif",fontSize:15,cursor:"pointer"}}>
-            + Agregar video
-          </button>
-        </div>
-      </Card>
-
-      {videos.length===0&&<div style={{textAlign:"center",padding:"20px",color:P.sand,fontSize:13,fontStyle:"italic"}}>Todavía no agregaste videos</div>}
-
-      {CATS.filter(c=>videos.some(v=>v.category===c)).map(c=>(
-        <div key={c}>
-          <div style={{fontSize:10,letterSpacing:"0.12em",textTransform:"uppercase",color:P.warmGray,marginBottom:8,marginTop:4}}>{c}</div>
-          {videos.filter(v=>v.category===c).map(v=>(
-            <Card key={v.id} style={{padding:"13px 16px"}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <div style={{flex:1}}>
-                  {serif(v.name,14,P.charcoal,false,500)}
-                  {v.ytId&&<div style={{fontSize:10,color:P.sage,marginTop:3}}>YouTube ✓</div>}
-                </div>
-                <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                  <a href={v.url} target="_blank" rel="noopener noreferrer" style={{padding:"6px 12px",background:P.terracotta,color:P.white,borderRadius:20,fontSize:11,textDecoration:"none",fontFamily:"'Jost',sans-serif"}}>▶ Ver</a>
-                  <button onClick={()=>remove(v.id)} style={{background:"none",border:"none",color:P.sand,cursor:"pointer",fontSize:18}}>×</button>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
+const AutoSaved=()=><div style={{display:"flex",alignItems:"center",gap:6,fontSize:10,color:P.sage,marginBottom:10}}><span>✓</span><span>Guardado automáticamente</span></div>;
 
 // ── MANTRAS ───────────────────────────────────────────────────────────────────
 function MantrasManager({mantras,onUpdate}){
@@ -174,38 +112,48 @@ function MantrasManager({mantras,onUpdate}){
   );
 }
 
-// ── MORNING ───────────────────────────────────────────────────────────────────
-function MorningSection({data,onChange,mantras,cycleDay}){
-  const phase=getPhase(cycleDay||5);
+// ── MORNING TAB — con guardado automático real ────────────────────────────────
+function MorningTab({appData,onSave,mantras,onUpdateMantras}){
+  const existing=appData.entries?.[today()]?.morning;
+  const phase=getPhase(appData.cycle?.currentDay||5);
   const todayMantra=mantras.length>0?mantras[new Date().getDate()%mantras.length]:null;
 
-  const[wakeupFeel,setWakeupFeel]=useState(data?.wakeupFeel||[]);
-  const[wakeupThoughts,setWakeupThoughts]=useState(data?.wakeupThoughts||"");
-  const[rituals,setRituals]=useState(data?.rituals||[]);
+  const[wakeupFeel,setWakeupFeel]=useState(existing?.wakeupFeel||[]);
+  const[wakeupThoughts,setWakeupThoughts]=useState(existing?.wakeupThoughts||"");
+  const[rituals,setRituals]=useState(existing?.rituals||[]);
   const[customRitual,setCustomRitual]=useState("");
-  const[ritualDone,setRitualDone]=useState(data?.ritualDone||false);
-  const[isFasting,setIsFasting]=useState(data?.isFasting||false);
-  const[fastingStart,setFastingStart]=useState(data?.fastingStart||"");
-  const[fastingEnd,setFastingEnd]=useState(data?.fastingEnd||"");
+  const[ritualDone,setRitualDone]=useState(existing?.ritualDone||false);
+  const[sleepH,setSleepH]=useState(existing?.sleepH||7);
+  const[sleepQ,setSleepQ]=useState(existing?.sleepQ||5);
+  const[phone,setPhone]=useState(existing?.phone||false);
+  const[showMantras,setShowMantras]=useState(false);
+  const[justSaved,setJustSaved]=useState(false);
 
-  const MORNING_OPTIONS=["Estiramientos","Masaje facial","Respiraciones","Drenaje linfático","TRE","Meditación","Journaling","Tapping"];
+  // Auto-save whenever any field changes
+  const save=useCallback((patch={})=>{
+    const data={wakeupFeel,wakeupThoughts,rituals,ritualDone,sleepH,sleepQ,phone,...patch};
+    onSave("morning",data);
+    setJustSaved(true);
+    setTimeout(()=>setJustSaved(false),2000);
+  },[wakeupFeel,wakeupThoughts,rituals,ritualDone,sleepH,sleepQ,phone,onSave]);
 
-  const emit=(patch)=>onChange({wakeupFeel,wakeupThoughts,rituals,ritualDone,isFasting,fastingStart,fastingEnd,...patch});
-  const togFeel=f=>{const n=wakeupFeel.includes(f)?wakeupFeel.filter(x=>x!==f):[...wakeupFeel,f];setWakeupFeel(n);emit({wakeupFeel:n});};
-  const togRitual=r=>{const n=rituals.includes(r)?rituals.filter(x=>x!==r):[...rituals,r];setRituals(n);emit({rituals:n});};
-  const addCustom=()=>{if(customRitual.trim()){const n=[...rituals,customRitual.trim()];setRituals(n);emit({rituals:n});setCustomRitual("");}};
-
-  const fastingHours=()=>{
-    if(!fastingStart||!fastingEnd) return null;
-    const[sh,sm]=fastingStart.split(":").map(Number);
-    const[eh,em]=fastingEnd.split(":").map(Number);
-    let diff=(eh*60+em)-(sh*60+sm);
-    if(diff<0) diff+=24*60;
-    return Math.round(diff/60*10)/10;
-  };
+  const togFeel=(f)=>{const n=wakeupFeel.includes(f)?wakeupFeel.filter(x=>x!==f):[...wakeupFeel,f];setWakeupFeel(n);save({wakeupFeel:n});};
+  const togRitual=(r)=>{const n=rituals.includes(r)?rituals.filter(x=>x!==r):[...rituals,r];setRituals(n);save({rituals:n});};
+  const addCustom=()=>{if(customRitual.trim()){const n=[...rituals,customRitual.trim()];setRituals(n);save({rituals:n});setCustomRitual("");}};
+  const setAndSaveSleepH=(v)=>{setSleepH(v);save({sleepH:v});};
+  const setAndSaveSleepQ=(v)=>{setSleepQ(v);save({sleepQ:v});};
+  const setAndSavePhone=(v)=>{setPhone(v);save({phone:v});};
+  const setAndSaveRitualDone=(v)=>{setRitualDone(v);save({ritualDone:v});};
 
   return(
     <div>
+      {/* Mantras manager */}
+      <button onClick={()=>setShowMantras(!showMantras)} style={{width:"100%",padding:"10px",background:"transparent",border:`1px dashed ${P.gold}`,borderRadius:10,color:P.gold,fontSize:11,cursor:"pointer",fontFamily:"'Jost',sans-serif",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>
+        {showMantras?"▾ Ocultar mis frases":"✦ Mis frases y recordatorios"}
+      </button>
+      {showMantras&&<Card><MantrasManager mantras={mantras} onUpdate={onUpdateMantras}/></Card>}
+
+      {/* Daily mantra */}
       {todayMantra&&(
         <Card style={{background:`linear-gradient(135deg,${P.gold}15,${P.terracotta}08)`,borderColor:P.gold+"40"}}>
           <div style={{fontSize:9,letterSpacing:"0.2em",textTransform:"uppercase",color:P.gold,marginBottom:10}}>Tu recordatorio de hoy</div>
@@ -213,56 +161,60 @@ function MorningSection({data,onChange,mantras,cycleDay}){
         </Card>
       )}
 
+      {/* Cycle phase */}
       <Card style={{background:phase.color+"12",borderColor:phase.color+"30"}}>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
           <span style={{fontSize:20}}>{phase.icon}</span>
           <div>
-            <div style={{fontSize:9,letterSpacing:"0.1em",textTransform:"uppercase",color:phase.color,marginBottom:3}}>{phase.name} · día {cycleDay}</div>
+            <div style={{fontSize:9,letterSpacing:"0.1em",textTransform:"uppercase",color:phase.color,marginBottom:3}}>{phase.name} · día {appData.cycle?.currentDay}</div>
             <div style={{fontSize:12,color:P.charcoal}}>{phase.foodNote}</div>
           </div>
         </div>
       </Card>
 
-      <Card>
-        {serif("Ayuno",15,P.charcoal,false,500)}
-        <div style={{marginTop:12,marginBottom:10}}>
-          <Chip active={isFasting} onClick={()=>{const v=!isFasting;setIsFasting(v);emit({isFasting:v});}} color={P.warmGray}>{isFasting?"✓ En ayuno":"¿Estás en ayuno?"}</Chip>
-        </div>
-        {isFasting&&(
-          <div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:10}}>
-              <div>{lbl("Inicio")}<input type="time" value={fastingStart} onChange={e=>{setFastingStart(e.target.value);emit({fastingStart:e.target.value});}} style={{width:"100%",background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:8,padding:"8px 10px",fontSize:13,color:P.charcoal}}/></div>
-              <div>{lbl("Fin")}<input type="time" value={fastingEnd} onChange={e=>{setFastingEnd(e.target.value);emit({fastingEnd:e.target.value});}} style={{width:"100%",background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:8,padding:"8px 10px",fontSize:13,color:P.charcoal}}/></div>
-            </div>
-            {fastingHours()&&<div style={{textAlign:"center",fontFamily:"'Playfair Display',serif",fontSize:18,color:P.warmGray}}>{fastingHours()}h</div>}
-          </div>
-        )}
-      </Card>
+      {justSaved&&<AutoSaved/>}
 
+      {/* Wakeup */}
       <Card>
         {serif("Al despertar",15,P.charcoal,false,500)}
         <div style={{marginTop:12,marginBottom:10}}>{lbl("¿Cómo te despertaste?")}</div>
-        <div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:14}}>{WAKEUP_FEELINGS.map(f=><Chip key={f} active={wakeupFeel.includes(f)} onClick={()=>togFeel(f)} color={P.gold}>{f}</Chip>)}</div>
+        <div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:14}}>
+          {WAKEUP_FEELINGS.map(f=><Chip key={f} active={wakeupFeel.includes(f)} onClick={()=>togFeel(f)} color={P.gold}>{f}</Chip>)}
+        </div>
         {lbl("Pensamientos al despertar")}
-        <TA value={wakeupThoughts} onChange={v=>{setWakeupThoughts(v);emit({wakeupThoughts:v});}} placeholder="Hoy desperté con la sensación de..." rows={2}/>
+        <TA value={wakeupThoughts} onChange={v=>setWakeupThoughts(v)} placeholder="Hoy desperté con la sensación de..." rows={2}/>
+        <button onClick={()=>save({wakeupThoughts})} style={{marginTop:8,padding:"6px 14px",background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:8,fontSize:11,color:P.warmGray,cursor:"pointer",fontFamily:"'Jost',sans-serif"}}>Guardar nota</button>
       </Card>
 
+      {/* Sleep — moved here from wellbeing */}
+      <Card>
+        {serif("¿Cómo dormiste?",15,P.charcoal,false,500)}
+        <div style={{marginTop:14}}>
+          <Slider value={sleepH} onChange={setAndSaveSleepH} min={4} max={10} lbl="Horas dormidas" color={P.warmGray}/>
+          <Slider value={sleepQ} onChange={setAndSaveSleepQ} min={1} max={10} lbl="Calidad del sueño" color={P.warmGray}/>
+          <Chip active={phone} onClick={()=>setAndSavePhone(!phone)}>Usé el teléfono antes de dormir</Chip>
+        </div>
+      </Card>
+
+      {/* Morning ritual */}
       <Card>
         {serif("Ritual de mañana",15,P.charcoal,false,500)}
         <div style={{marginTop:12,marginBottom:8}}>{lbl("¿Qué hiciste para vos?")}</div>
-        <div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:12}}>{MORNING_OPTIONS.map(r=><Chip key={r} active={rituals.includes(r)} onClick={()=>togRitual(r)} color={P.terracotta}>{r}</Chip>)}</div>
+        <div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:12}}>
+          {MORNING_RITUALS.map(r=><Chip key={r} active={rituals.includes(r)} onClick={()=>togRitual(r)} color={P.terracotta}>{r}</Chip>)}
+        </div>
         <div style={{display:"flex",gap:8,marginBottom:12}}>
           <input value={customRitual} onChange={e=>setCustomRitual(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addCustom()} placeholder="Otra acción..." style={{flex:1,background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:8,padding:"8px 12px",fontSize:12,color:P.charcoal}}/>
           <button onClick={addCustom} style={{padding:"8px 14px",background:P.terracotta,color:P.white,border:"none",borderRadius:8,fontSize:12,cursor:"pointer"}}>+</button>
         </div>
-        <Chip active={ritualDone} onClick={()=>{const v=!ritualDone;setRitualDone(v);emit({ritualDone:v});}} color={P.sage}>{ritualDone?"✓ Lo hice":"¿Lo completaste?"}</Chip>
+        <Chip active={ritualDone} onClick={()=>setAndSaveRitualDone(!ritualDone)} color={P.sage}>{ritualDone?"✓ Lo hice":"¿Lo completaste?"}</Chip>
       </Card>
     </div>
   );
 }
 
-// ── WORKOUT ───────────────────────────────────────────────────────────────────
-function WorkoutLog({onSave,existing,wasSaved,videos}){
+// ── HOY — MOVIMIENTO ──────────────────────────────────────────────────────────
+function WorkoutLog({onSave,existing,videos}){
   const[sessionType,setSessionType]=useState(existing?.sessionType||"gym");
   const[gymDay,setGymDay]=useState(existing?.gymDay||1);
   const workout=WORKOUTS[gymDay];
@@ -283,16 +235,12 @@ function WorkoutLog({onSave,existing,wasSaved,videos}){
   const upd=(ei,si,f,v)=>setSets(p=>({...p,[`${ei}-${si}`]:{...(p[`${ei}-${si}`]||{}),[f]:v}}));
   const toggleCardio=t=>setCardioSessions(p=>p.find(s=>s.type===t)?p.filter(s=>s.type!==t):[...p,{type:t,duration:30}]);
   const updateCardioDur=(t,dur)=>setCardioSessions(p=>p.map(s=>s.type===t?{...s,duration:dur}:s));
-
   const handleSave=()=>onSave({sessionType,gymDay,startTime,endTime,actDone,sets,notes,bodyFeel,pain,cardioSessions,steps,selectedVideo,videoDone,pyNotes,pyIntensity});
 
-  const pyVideos=videos.filter(v=>["Yoga","Pilates","Meditación","Respiración","Movilidad","Otro"].includes(v.category));
+  const pyVideos=videos;
 
   return(
     <div>
-      {wasSaved&&<SavedBanner/>}
-
-      {/* Session type */}
       <Card>
         {lbl("¿Qué tipo de sesión hiciste hoy?")}
         <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
@@ -303,12 +251,11 @@ function WorkoutLog({onSave,existing,wasSaved,videos}){
         </div>
       </Card>
 
-      {/* GYM section */}
       {(sessionType==="gym"||sessionType==="both")&&(<>
         <Card style={{background:P.terracotta+"10",borderColor:P.terracotta+"30"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-            <div>{serif(workout.name,20,P.charcoal,false,500)}<div style={{marginTop:4,fontSize:12,color:P.warmGray}}>{workout.subtitle}</div></div>
-            <div>{lbl("Día #")}<div style={{display:"flex",gap:6}}>{[1,2,3].map(d=><button key={d} onClick={()=>setGymDay(d)} style={{width:32,height:32,borderRadius:"50%",border:`2px solid ${gymDay===d?P.terracotta:P.sand}`,background:gymDay===d?P.terracotta:"transparent",color:gymDay===d?P.white:P.warmGray,fontSize:13,cursor:"pointer"}}>{d}</button>)}</div></div>
+            <div>{serif(workout.name,18,P.charcoal,false,500)}<div style={{marginTop:4,fontSize:11,color:P.warmGray}}>{workout.subtitle}</div></div>
+            <div>{lbl("Día #")}<div style={{display:"flex",gap:6}}>{[1,2,3].map(d=><button key={d} onClick={()=>setGymDay(d)} style={{width:30,height:30,borderRadius:"50%",border:`2px solid ${gymDay===d?P.terracotta:P.sand}`,background:gymDay===d?P.terracotta:"transparent",color:gymDay===d?P.white:P.warmGray,fontSize:12,cursor:"pointer"}}>{d}</button>)}</div></div>
           </div>
           <div style={{display:"flex",gap:12,marginTop:14}}>
             {[["Inicio",startTime,setStartTime],["Fin",endTime,setEndTime]].map(([l,v,s])=>(
@@ -316,43 +263,40 @@ function WorkoutLog({onSave,existing,wasSaved,videos}){
             ))}
           </div>
         </Card>
-
         <Card>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:actDone?0:12}}>
-            {serif("Activación",15,P.charcoal,false,500)}
+            {serif("Activación",14,P.charcoal,false,500)}
             <Chip active={actDone} onClick={()=>setActDone(!actDone)} color={P.sage}>{actDone?"✓ Hecho":"Marcar hecho"}</Chip>
           </div>
           {!actDone&&<div style={{marginTop:10}}>{ACTIVATION.map((a,i)=><div key={i} style={{display:"flex",gap:8,marginBottom:7}}><div style={{width:20,height:20,borderRadius:"50%",background:P.parchment,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><span style={{fontSize:10,color:P.warmGray}}>{i+1}</span></div><span style={{fontSize:12,color:P.charcoal,lineHeight:1.5}}>{a}</span></div>)}</div>}
         </Card>
-
         {workout.exercises.map((ex,ei)=>(
           <Card key={ei} delay={ei*0.03}>
-            {serif(ex.name,15,P.charcoal,false,500)}
+            {serif(ex.name,14,P.charcoal,false,500)}
             <div style={{marginTop:3,fontSize:11,color:P.warmGray}}>{ex.sets} series · {ex.reps} reps</div>
-            <div style={{marginTop:3,fontSize:11,color:P.terracottaLight,fontStyle:"italic",marginBottom:12}}>{ex.notes}</div>
-            <div style={{display:"grid",gridTemplateColumns:"26px 1fr 1fr 1fr",gap:5,alignItems:"center"}}>
+            <div style={{marginTop:2,fontSize:11,color:P.terracottaLight,fontStyle:"italic",marginBottom:10}}>{ex.notes}</div>
+            <div style={{display:"grid",gridTemplateColumns:"24px 1fr 1fr 1fr",gap:5,alignItems:"center"}}>
               {["","KG","REPS","NOTA"].map((h,i)=><span key={i} style={{fontSize:9,letterSpacing:"0.1em",color:P.warmGray,textTransform:"uppercase"}}>{h}</span>)}
               {Array.from({length:ex.sets},(_,si)=>[
-                <div key={`n${si}`} style={{width:22,height:22,borderRadius:"50%",background:P.terracotta+"20",display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:10,color:P.terracotta,fontWeight:500}}>{si+1}</span></div>,
-                <input key={`k${si}`} type="number" placeholder="—" value={sets[`${ei}-${si}`]?.kg||""} onChange={e=>upd(ei,si,"kg",e.target.value)} style={{background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:7,padding:"6px 7px",fontSize:13,color:P.charcoal,width:"100%"}}/>,
-                <input key={`r${si}`} type="number" placeholder="—" value={sets[`${ei}-${si}`]?.reps||""} onChange={e=>upd(ei,si,"reps",e.target.value)} style={{background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:7,padding:"6px 7px",fontSize:13,color:P.charcoal,width:"100%"}}/>,
-                <input key={`t${si}`} type="text" placeholder="..." value={sets[`${ei}-${si}`]?.note||""} onChange={e=>upd(ei,si,"note",e.target.value)} style={{background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:7,padding:"6px 7px",fontSize:11,color:P.charcoal,width:"100%"}}/>
+                <div key={`n${si}`} style={{width:20,height:20,borderRadius:"50%",background:P.terracotta+"20",display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:9,color:P.terracotta,fontWeight:500}}>{si+1}</span></div>,
+                <input key={`k${si}`} type="number" placeholder="—" value={sets[`${ei}-${si}`]?.kg||""} onChange={e=>upd(ei,si,"kg",e.target.value)} style={{background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:7,padding:"5px 6px",fontSize:13,color:P.charcoal,width:"100%"}}/>,
+                <input key={`r${si}`} type="number" placeholder="—" value={sets[`${ei}-${si}`]?.reps||""} onChange={e=>upd(ei,si,"reps",e.target.value)} style={{background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:7,padding:"5px 6px",fontSize:13,color:P.charcoal,width:"100%"}}/>,
+                <input key={`t${si}`} type="text" placeholder="..." value={sets[`${ei}-${si}`]?.note||""} onChange={e=>upd(ei,si,"note",e.target.value)} style={{background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:7,padding:"5px 6px",fontSize:11,color:P.charcoal,width:"100%"}}/>
               ])}
             </div>
           </Card>
         ))}
       </>)}
 
-      {/* PILATES/YOGA section */}
       {(sessionType==="pilates"||sessionType==="both")&&(
         <Card style={{background:P.sage+"10",borderColor:P.sage+"40"}}>
-          {serif("Pilates / Yoga",16,P.charcoal,false,500)}
+          {serif("Pilates / Yoga",15,P.charcoal,false,500)}
           <div style={{marginTop:14}}>
             {pyVideos.length>0?(
               <div>
                 {lbl("Elegí tu clase de hoy")}
                 {pyVideos.map(v=>(
-                  <div key={v.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:selectedVideo?.id===v.id?P.sage+"20":P.parchment,borderRadius:10,padding:"10px 14px",marginBottom:8,border:`1px solid ${selectedVideo?.id===v.id?P.sage:P.sand}`,cursor:"pointer"}} onClick={()=>setSelectedVideo(v)}>
+                  <div key={v.id} onClick={()=>setSelectedVideo(v)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:selectedVideo?.id===v.id?P.sage+"20":P.parchment,borderRadius:10,padding:"10px 14px",marginBottom:8,border:`1px solid ${selectedVideo?.id===v.id?P.sage:P.sand}`,cursor:"pointer"}}>
                     <div>
                       <div style={{fontSize:13,color:P.charcoal,fontWeight:selectedVideo?.id===v.id?500:300}}>{v.name}</div>
                       <div style={{fontSize:10,color:P.sage,marginTop:2}}>{v.category}</div>
@@ -361,27 +305,24 @@ function WorkoutLog({onSave,existing,wasSaved,videos}){
                   </div>
                 ))}
                 {selectedVideo&&(
-                  <div style={{display:"flex",gap:8,marginTop:8,marginBottom:14}}>
-                    <a href={selectedVideo.url} target="_blank" rel="noopener noreferrer" style={{flex:1,padding:"11px",background:P.terracotta,color:P.white,borderRadius:10,textDecoration:"none",textAlign:"center",fontFamily:"'Playfair Display',serif",fontSize:15}}>▶ Ir al video</a>
+                  <div style={{display:"flex",gap:8,marginTop:8,marginBottom:14,alignItems:"center"}}>
+                    <a href={selectedVideo.url} target="_blank" rel="noopener noreferrer" style={{flex:1,padding:"11px",background:P.terracotta,color:P.white,borderRadius:10,textDecoration:"none",textAlign:"center",fontFamily:"'Playfair Display',serif",fontSize:14}}>▶ Ir al video</a>
                     <Chip active={videoDone} onClick={()=>setVideoDone(!videoDone)} color={P.sage}>{videoDone?"✓ Hecho":"Marcar hecho"}</Chip>
                   </div>
                 )}
               </div>
             ):(
-              <div style={{textAlign:"center",padding:"16px 0",color:P.sand,fontSize:13,fontStyle:"italic"}}>
-                Agregá videos en la pestaña "Videos" para elegir tu clase
-              </div>
+              <div style={{textAlign:"center",padding:"16px 0",color:P.sand,fontSize:13,fontStyle:"italic"}}>Agregá videos en la pestaña "Videos" para elegir tu clase</div>
             )}
-            <Slider value={pyIntensity} onChange={setPyIntensity} min={1} max={10} lbl="Intensidad de la sesión" color={P.sage}/>
-            <TA value={pyNotes} onChange={setPyNotes} placeholder="¿Cómo se sintió? ¿Qué notaste?" rows={2}/>
+            <Slider value={pyIntensity} onChange={setPyIntensity} min={1} max={10} lbl="Intensidad" color={P.sage}/>
+            <TA value={pyNotes} onChange={setPyNotes} placeholder="¿Cómo se sintió?" rows={2}/>
           </div>
         </Card>
       )}
 
-      {/* Cardio */}
       <Card>
-        {serif("Cardio",15,P.charcoal,false,500)}
-        <div style={{marginTop:12,marginBottom:12}}>{lbl("Tipos (podés elegir varios)")}<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{CARDIO_OPTIONS.map(t=><Chip key={t} active={!!cardioSessions.find(s=>s.type===t)} onClick={()=>toggleCardio(t)}>{t}</Chip>)}</div></div>
+        {serif("Cardio",14,P.charcoal,false,500)}
+        <div style={{marginTop:10,marginBottom:10}}>{lbl("Tipos (podés elegir varios)")}<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{CARDIO_OPTIONS.map(t=><Chip key={t} active={!!cardioSessions.find(s=>s.type===t)} onClick={()=>toggleCardio(t)}>{t}</Chip>)}</div></div>
         {cardioSessions.map(s=>(
           <div key={s.type} style={{background:P.parchment,borderRadius:10,padding:"10px 14px",marginBottom:8}}>
             <div style={{fontSize:12,color:P.terracotta,fontWeight:500,marginBottom:8}}>{s.type}</div>
@@ -391,20 +332,18 @@ function WorkoutLog({onSave,existing,wasSaved,videos}){
       </Card>
 
       <Card>{lbl("Pasos del día")}<input type="number" value={steps} onChange={e=>setSteps(e.target.value)} placeholder="¿Cuántos pasos?" style={{width:"100%",background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:10,padding:"10px 13px",fontSize:13,color:P.charcoal}}/></Card>
-
       <Card>
         <Slider value={bodyFeel} onChange={setBodyFeel} min={1} max={10} lbl="¿Cómo se sintió el cuerpo?"/>
         <Slider value={pain} onChange={setPain} min={1} max={10} lbl="Dolor o molestia" color={P.warmGray}/>
         <TA value={notes} onChange={setNotes} placeholder="Observaciones, qué notaste..."/>
       </Card>
-
       <button onClick={handleSave} style={{width:"100%",padding:"14px",background:P.terracotta,color:P.white,border:"none",borderRadius:11,fontFamily:"'Playfair Display',serif",fontSize:16,cursor:"pointer",marginBottom:8}}>Guardar movimiento</button>
     </div>
   );
 }
 
-// ── NUTRITION ─────────────────────────────────────────────────────────────────
-function NutritionLog({onSave,existing,wasSaved}){
+// ── NUTRICIÓN ─────────────────────────────────────────────────────────────────
+function NutritionLog({onSave,existing}){
   const[meals,setMeals]=useState(existing?.meals||{desayuno:{food:"",time:""},almuerzo:{food:"",time:""},merienda:{food:"",time:""},cena:{food:"",time:""}});
   const[water,setWater]=useState(existing?.water||4);
   const[supps,setSupps]=useState(existing?.supps||[]);
@@ -413,43 +352,67 @@ function NutritionLog({onSave,existing,wasSaved}){
   const[sugar,setSugar]=useState(existing?.sugar||3);
   const[extraNotes,setExtraNotes]=useState(existing?.extraNotes||"");
   const[showMacros,setShowMacros]=useState({});
+  const[isFasting,setIsFasting]=useState(existing?.isFasting||false);
+  const[fastingStart,setFastingStart]=useState(existing?.fastingStart||"");
+  const[fastingEnd,setFastingEnd]=useState(existing?.fastingEnd||"");
 
   const SUPPS=["Enzimas digestivas","Berberina","Myo-inositol","Soporte adrenal","Ácido butírico","Proteína en polvo"];
   const togSupp=s=>setSupps(p=>p.includes(s)?p.filter(x=>x!==s):[...p,s]);
   const setMealF=(k,f,v)=>setMeals(p=>({...p,[k]:{...p[k],[f]:v}}));
 
+  const fastingHours=()=>{
+    if(!fastingStart||!fastingEnd) return null;
+    const[sh,sm]=fastingStart.split(":").map(Number);
+    const[eh,em]=fastingEnd.split(":").map(Number);
+    let diff=(eh*60+em)-(sh*60+sm);
+    if(diff<0) diff+=24*60;
+    return Math.round(diff/60*10)/10;
+  };
+
   return(
     <div>
-      {wasSaved&&<SavedBanner/>}
+      {/* Fasting */}
+      <Card>
+        {serif("Ayuno",14,P.charcoal,false,500)}
+        <div style={{marginTop:10,marginBottom:10}}><Chip active={isFasting} onClick={()=>setIsFasting(!isFasting)} color={P.warmGray}>{isFasting?"✓ En ayuno":"¿Estás en ayuno?"}</Chip></div>
+        {isFasting&&(
+          <div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:10}}>
+              <div>{lbl("Inicio")}<input type="time" value={fastingStart} onChange={e=>setFastingStart(e.target.value)} style={{width:"100%",background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:8,padding:"8px 10px",fontSize:13,color:P.charcoal}}/></div>
+              <div>{lbl("Fin")}<input type="time" value={fastingEnd} onChange={e=>setFastingEnd(e.target.value)} style={{width:"100%",background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:8,padding:"8px 10px",fontSize:13,color:P.charcoal}}/></div>
+            </div>
+            {fastingHours()&&<div style={{textAlign:"center",fontFamily:"'Playfair Display',serif",fontSize:18,color:P.warmGray}}>{fastingHours()}h</div>}
+          </div>
+        )}
+      </Card>
+
       {Object.entries(MEAL_META).map(([k,meta],i)=>(
         <Card key={k} delay={i*0.05}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-            <div style={{display:"flex",alignItems:"center",gap:7}}><span style={{fontSize:16}}>{meta.icon}</span>{serif(meta.label,15,P.charcoal,false,500)}</div>
+            <div style={{display:"flex",alignItems:"center",gap:7}}><span style={{fontSize:16}}>{meta.icon}</span>{serif(meta.label,14,P.charcoal,false,500)}</div>
             <input type="time" value={meals[k]?.time||""} onChange={e=>setMealF(k,"time",e.target.value)} style={{background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:8,padding:"5px 9px",fontSize:12,color:P.warmGray,width:90}}/>
           </div>
-          <button onClick={()=>setShowMacros(p=>({...p,[k]:!p[k]}))} style={{background:"none",border:"none",cursor:"pointer",fontSize:11,color:P.terracottaLight,fontFamily:"'Jost',sans-serif",padding:"0 0 8px"}}>{showMacros[k]?"▾ Ocultar guía":"▸ Ver guía"}</button>
+          <button onClick={()=>setShowMacros(p=>({...p,[k]:!p[k]}))} style={{background:"none",border:"none",cursor:"pointer",fontSize:11,color:P.terracottaLight,fontFamily:"'Jost',sans-serif",padding:"0 0 8px"}}>{showMacros[k]?"▾ Ocultar":"▸ Ver guía"}</button>
           {showMacros[k]&&<div style={{background:P.parchment,borderRadius:10,padding:"11px 13px",marginBottom:10}}><div style={{fontSize:11,color:P.terracotta,fontWeight:500,marginBottom:4}}>{meta.target}</div><div style={{fontSize:11,color:P.warmGray,lineHeight:1.5,fontStyle:"italic"}}>{meta.example}</div></div>}
           <TA value={meals[k]?.food||""} onChange={v=>setMealF(k,"food",v)} placeholder={meta.placeholder} rows={2}/>
         </Card>
       ))}
+
       <Card delay={0.22}>
         <Slider value={water} onChange={setWater} min={1} max={12} lbl="💧 Vasos de agua" color={P.sage}/>
         <Slider value={sugar} onChange={setSugar} min={1} max={10} lbl="Antojo de azúcar" color={P.terracottaLight}/>
         <div style={{marginBottom:14}}>{lbl("Inflamación")}<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{["nada","poco","moderado","mucho"].map(o=><Chip key={o} active={inflammation===o} onClick={()=>setInflammation(o)}>{o}</Chip>)}</div></div>
         <Chip active={bathroom} onClick={()=>setBathroom(!bathroom)} color={P.sage}>{bathroom?"✓ Fui al baño":"¿Fuiste al baño?"}</Chip>
       </Card>
-      <Card delay={0.28}>{lbl("Suplementos")}<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{SUPPS.map(s=><Chip key={s} active={supps.includes(s)} onClick={()=>togSupp(s)}>{s}</Chip>)}</div></Card>
-      <Card delay={0.34}>{lbl("Notas")}<TA value={extraNotes} onChange={setExtraNotes} placeholder="Algo fuera del plan, cómo te sentiste..."/></Card>
-      <button onClick={()=>onSave({meals,water,supps,inflammation,bathroom,sugar,extraNotes})} style={{width:"100%",padding:"14px",background:P.terracotta,color:P.white,border:"none",borderRadius:11,fontFamily:"'Playfair Display',serif",fontSize:16,cursor:"pointer",marginBottom:8}}>Guardar nutrición</button>
+      <Card>{lbl("Suplementos")}<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{SUPPS.map(s=><Chip key={s} active={supps.includes(s)} onClick={()=>togSupp(s)}>{s}</Chip>)}</div></Card>
+      <Card>{lbl("Notas")}<TA value={extraNotes} onChange={setExtraNotes} placeholder="Algo fuera del plan, cómo te sentiste..."/></Card>
+      <button onClick={()=>onSave({meals,water,supps,inflammation,bathroom,sugar,extraNotes,isFasting,fastingStart,fastingEnd})} style={{width:"100%",padding:"14px",background:P.terracotta,color:P.white,border:"none",borderRadius:11,fontFamily:"'Playfair Display',serif",fontSize:16,cursor:"pointer",marginBottom:8}}>Guardar nutrición</button>
     </div>
   );
 }
 
-// ── WELLBEING ─────────────────────────────────────────────────────────────────
-function WellbeingLog({onSave,existing,wasSaved}){
-  const[sleepH,setSleepH]=useState(existing?.sleepH||7);
-  const[sleepQ,setSleepQ]=useState(existing?.sleepQ||5);
-  const[phone,setPhone]=useState(existing?.phone||false);
+// ── BIENESTAR ─────────────────────────────────────────────────────────────────
+function WellbeingLog({onSave,existing}){
   const[emotions,setEmotions]=useState(existing?.emotions||[]);
   const[emotionNote,setEmotionNote]=useState(existing?.emotionNote||"");
   const[bodyNote,setBodyNote]=useState(existing?.bodyNote||"");
@@ -465,15 +428,6 @@ function WellbeingLog({onSave,existing,wasSaved}){
 
   return(
     <div>
-      {wasSaved&&<SavedBanner/>}
-      <Card>
-        {serif("Sueño",15,P.charcoal,false,500)}
-        <div style={{marginTop:14}}>
-          <Slider value={sleepH} onChange={setSleepH} min={4} max={10} lbl="Horas dormidas" color={P.warmGray}/>
-          <Slider value={sleepQ} onChange={setSleepQ} min={1} max={10} lbl="Calidad" color={P.warmGray}/>
-          <Chip active={phone} onClick={()=>setPhone(!phone)}>Usé el teléfono antes de dormir</Chip>
-        </div>
-      </Card>
       <Card>
         {serif("Estado interior",15,P.charcoal,false,500)}
         <div style={{marginTop:14}}>
@@ -495,12 +449,12 @@ function WellbeingLog({onSave,existing,wasSaved}){
           {lbl("Victoria del día")}<TA value={win} onChange={setWin} placeholder="Por pequeña que sea." rows={2}/>
         </div>
       </Card>
-      <button onClick={()=>onSave({sleepH,sleepQ,phone,emotions,emotionNote,bodyNote,win,learned,energy,procrastinated,procrastinationNote,procrastinationWhy})} style={{width:"100%",padding:"14px",background:P.terracotta,color:P.white,border:"none",borderRadius:11,fontFamily:"'Playfair Display',serif",fontSize:16,cursor:"pointer",marginBottom:8}}>Guardar bienestar</button>
+      <button onClick={()=>onSave({emotions,emotionNote,bodyNote,win,learned,energy,procrastinated,procrastinationNote,procrastinationWhy})} style={{width:"100%",padding:"14px",background:P.terracotta,color:P.white,border:"none",borderRadius:11,fontFamily:"'Playfair Display',serif",fontSize:16,cursor:"pointer",marginBottom:8}}>Guardar bienestar</button>
     </div>
   );
 }
 
-// ── CYCLE ─────────────────────────────────────────────────────────────────────
+// ── CICLO ─────────────────────────────────────────────────────────────────────
 function CycleView({cycleData,onUpdate}){
   const[day,setDay]=useState(cycleData?.currentDay||5);
   const[cycleNote,setCycleNote]=useState(cycleData?.cycleNote||"");
@@ -513,13 +467,13 @@ function CycleView({cycleData,onUpdate}){
           {serif(phase.name,22,phase.color)}
           <div style={{marginTop:5,fontSize:12,color:P.warmGray}}>Día {day}</div>
         </div>
-        <div style={{background:P.parchment,borderRadius:12,padding:"13px 15px",marginBottom:16,fontSize:13,color:P.charcoal,lineHeight:1.7,fontWeight:300}}>{phase.desc}</div>
+        <div style={{background:P.parchment,borderRadius:12,padding:"13px 15px",marginBottom:14,fontSize:13,color:P.charcoal,lineHeight:1.7,fontWeight:300}}>{phase.desc}</div>
         <div style={{background:`linear-gradient(135deg,${phase.color}20,${phase.color}08)`,borderRadius:12,padding:"13px 15px",marginBottom:16,borderLeft:`3px solid ${phase.color}`}}>
           <div style={{fontSize:9,letterSpacing:"0.12em",textTransform:"uppercase",color:phase.color,marginBottom:6}}>Nutrición esta fase</div>
           <div style={{fontSize:13,color:P.charcoal,lineHeight:1.6,fontWeight:300}}>{phase.foods}</div>
         </div>
         <Slider value={day} onChange={setDay} min={1} max={28} lbl="Día del ciclo" color={phase.color}/>
-        <div style={{display:"flex",gap:3,flexWrap:"wrap",marginBottom:16}}>{Array.from({length:28},(_,i)=>{const d=i+1,ph=getPhase(d),active=d===day;return<button key={d} onClick={()=>setDay(d)} style={{width:23,height:23,borderRadius:"50%",border:active?`2px solid ${ph.color}`:"none",background:active?ph.color:ph.color+"30",cursor:"pointer",fontSize:9,color:active?P.white:P.charcoal,fontWeight:active?600:300}}>{d}</button>;})}</div>
+        <div style={{display:"flex",gap:3,flexWrap:"wrap",marginBottom:16}}>{Array.from({length:28},(_,i)=>{const d=i+1,ph=getPhase(d),active=d===day;return<button key={d} onClick={()=>setDay(d)} style={{width:22,height:22,borderRadius:"50%",border:active?`2px solid ${ph.color}`:"none",background:active?ph.color:ph.color+"30",cursor:"pointer",fontSize:9,color:active?P.white:P.charcoal,fontWeight:active?600:300}}>{d}</button>;})}</div>
         <div style={{marginBottom:14}}>{lbl("Anotación (dolor, síntomas)")}<TA value={cycleNote} onChange={setCycleNote} placeholder="Ej: fue doloroso, más hambre..." rows={2}/></div>
         <button onClick={()=>onUpdate({currentDay:day,cycleNote,updatedAt:today()})} style={{width:"100%",padding:"13px",background:P.terracotta,color:P.white,border:"none",borderRadius:11,fontFamily:"'Playfair Display',serif",fontSize:16,cursor:"pointer"}}>Guardar ciclo</button>
       </Card>
@@ -527,7 +481,7 @@ function CycleView({cycleData,onUpdate}){
   );
 }
 
-// ── ASTROLOGY ─────────────────────────────────────────────────────────────────
+// ── ASTRO ─────────────────────────────────────────────────────────────────────
 function AstrologyView({cycleData}){
   const[reading,setReading]=useState(null);
   const[loading,setLoading]=useState(false);
@@ -536,25 +490,14 @@ function AstrologyView({cycleData}){
   const generate=async()=>{
     setLoading(true);
     const dateStr=new Date().toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
-    const prompt=`Sos una astrologa profunda y sabia, al estilo de The Pattern — íntima, precisa, poética pero concreta.
-
-Carta natal de Julieta:
-- Sol en Géminis: curiosidad, dualidad, comunicación, necesidad de estimulación mental
-- Ascendente en Aries: impulso, iniciativa, energía que arranca antes de pensar
-- Luna en Piscis: mundo emocional profundo, sensibilidad extrema, conexión con lo invisible
-
-Hoy es ${dateStr}. Fase del ciclo: ${phase.name} (día ${cycleData?.currentDay||5}).
-
-Dále una lectura astrológica de HOY. Mencioná qué energías están activas basándote en el mes, la estación y el cielo. Conectalo con su carta natal. Sé específica sobre cómo impacta en ella.
-
-Estructura:
+    const r=await callAI("Sos una astrologa profunda. Respondés en español rioplatense.",
+      `Carta natal de Julieta: Sol Géminis, Ascendente Aries, Luna Piscis. Nacida el 6/6/1988, 3:30am, Olavarría, BA.
+Hoy es ${dateStr}. Fase del ciclo: ${phase.name} día ${cycleData?.currentDay||5}.
+Dála una lectura astrológica de HOY. Conectá los tránsitos del momento con su carta. Íntima, directa, al estilo The Pattern.
 1. La energía disponible hoy
-2. Tu carta habla — cómo su carta interactúa con esto
-3. Un portal — una acción o intención concreta
-
-Máximo 200 palabras. Íntima, directa.`;
-
-    const r=await callAI("Sos una astrologa profunda. Respondés en español rioplatense.",prompt,600);
+2. Tu carta habla
+3. Un portal concreto
+Máximo 200 palabras.`,600);
     setReading(r);setLoading(false);
   };
 
@@ -565,28 +508,24 @@ Máximo 200 palabras. Íntima, directa.`;
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:14}}>
           {[{l:"Sol",v:"Géminis ♊",c:P.gold},{l:"Ascendente",v:"Aries ♈",c:P.terracotta},{l:"Luna",v:"Piscis ♓",c:P.indigo}].map(({l,v,c})=>(
             <div key={l} style={{textAlign:"center",background:P.white,borderRadius:10,padding:"10px 8px"}}>
-              <div style={{fontFamily:"'Playfair Display',serif",fontSize:15,color:c,marginBottom:3}}>{v}</div>
+              <div style={{fontFamily:"'Playfair Display',serif",fontSize:14,color:c,marginBottom:3}}>{v}</div>
               <div style={{fontSize:9,color:P.warmGray,letterSpacing:"0.08em",textTransform:"uppercase"}}>{l}</div>
             </div>
           ))}
         </div>
         <div style={{fontSize:11,color:P.warmGray,lineHeight:1.6,fontStyle:"italic"}}>La mente que conecta puntos invisibles · El espíritu que arranca sin permiso · El alma que siente todo</div>
       </Card>
-
       <Card>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:reading?14:0}}>
-          {serif("Lectura de hoy",16,P.charcoal,false,500)}
-          <button onClick={generate} disabled={loading} style={{padding:"8px 16px",background:loading?P.sand:P.indigo,color:P.white,border:"none",borderRadius:20,fontSize:12,cursor:loading?"default":"pointer",fontFamily:"'Jost',sans-serif",fontWeight:500}}>
-            {loading?"Leyendo...":"✦ Consultar"}
-          </button>
+          {serif("Lectura de hoy",15,P.charcoal,false,500)}
+          <button onClick={generate} disabled={loading} style={{padding:"8px 16px",background:loading?P.sand:P.indigo,color:P.white,border:"none",borderRadius:20,fontSize:12,cursor:loading?"default":"pointer",fontFamily:"'Jost',sans-serif",fontWeight:500}}>{loading?"Leyendo...":"✦ Consultar"}</button>
         </div>
         {loading&&<Loader/>}
         {reading&&!loading&&<div style={{fontFamily:"'Playfair Display',serif",fontSize:14,lineHeight:1.9,color:P.charcoal,whiteSpace:"pre-line",fontStyle:"italic"}}>{reading}</div>}
         {!reading&&!loading&&<div style={{textAlign:"center",padding:"20px 0",color:P.sand,fontSize:13,fontStyle:"italic"}}>Tocá "Consultar" para ver qué dice el cielo hoy</div>}
       </Card>
-
       <Card style={{background:P.indigo+"08",borderColor:P.indigo+"20"}}>
-        <div style={{fontSize:9,letterSpacing:"0.12em",textTransform:"uppercase",color:P.indigo,marginBottom:10}}>Tu arquetipo en fase {phase.name}</div>
+        <div style={{fontSize:9,letterSpacing:"0.12em",textTransform:"uppercase",color:P.indigo,marginBottom:10}}>Arquetipo — fase {phase.name}</div>
         <div style={{fontFamily:"'Playfair Display',serif",fontSize:14,lineHeight:1.7,color:P.charcoal}}>
           {phase.key==="menstrual"&&"La Bruja. La que sabe sin explicar. La que descansa sin culpa. La que suelta lo que ya no sirve."}
           {phase.key==="folicular"&&"La Doncella. La que empieza. La que ve posibilidades donde otros ven problemas."}
@@ -594,6 +533,126 @@ Máximo 200 palabras. Íntima, directa.`;
           {phase.key==="lutea"&&"La Hechicera. La que siente todo. La que necesita verdad. La que no tolera lo superficial."}
         </div>
       </Card>
+    </div>
+  );
+}
+
+// ── ANÁLISIS — feedback + semana unificados ───────────────────────────────────
+function AnalisisView({entries,cycleData}){
+  const[analysis,setAnalysis]=useState(null);
+  const[loading,setLoading]=useState(false);
+  const todayEntry=entries[today()]||{};
+
+  const getLast7=()=>{
+    const days=[];
+    for(let i=6;i>=0;i--){
+      const d=new Date();d.setDate(d.getDate()-i);
+      const key=d.toISOString().split("T")[0];
+      if(entries[key]) days.push({date:key,...entries[key]});
+    }
+    return days;
+  };
+
+  const generate=async()=>{
+    const last7=getLast7();
+    setLoading(true);
+    const hasTodayData=Object.keys(todayEntry).length>0;
+    const prompt=`Analizá los datos de Julieta como el micelio. Mostrá patrones reales que ella quizás no ve.
+
+${hasTodayData?`Datos de HOY:\n${JSON.stringify(todayEntry,null,2)}\n\n`:""}
+Datos de los últimos días disponibles:
+${JSON.stringify(last7,null,2)}
+
+Estructura tu análisis en 3 partes:
+1. **Lo que está emergiendo** — patrones reales: qué se repite, qué conexiones ves entre emociones, movimiento, sueño, procrastinación. Si hay algo que cambió aunque sea imperceptiblemente, nombralo.
+2. **Una conexión que quizás no viste** — algo concreto que conecta distintas áreas (ej: el patrón de despertar acelerada se relaciona con X, o cuando procrastinás esa semana también dormís peor)
+3. **Una pregunta o frase** — que la conecte con la Julieta que construye. Poética pero real.
+
+Sé directa, específica, no genérica. Máximo 250 palabras.`;
+    const r=await callAI(JULI_CTX,prompt,800);
+    setAnalysis(r);setLoading(false);
+  };
+
+  const last7=getLast7();
+  const metrics=[
+    {l:"Agua promedio",v:last7.filter(e=>e.nutrition?.water).length?Math.round(last7.filter(e=>e.nutrition?.water).reduce((a,e)=>a+(e.nutrition?.water||0),0)/last7.filter(e=>e.nutrition?.water).length)+" vasos":"—",c:P.sage},
+    {l:"Sueño promedio",v:last7.filter(e=>e.morning?.sleepH).length?(Math.round(last7.filter(e=>e.morning?.sleepH).reduce((a,e)=>a+(e.morning?.sleepH||0),0)/last7.filter(e=>e.morning?.sleepH).length*10)/10)+"h":"—",c:P.warmGray},
+    {l:"Días entrené",v:last7.filter(e=>e.workout?.sessionType).length+"/"+last7.length,c:P.terracotta},
+    {l:"Ritual mañana",v:last7.filter(e=>e.morning?.ritualDone).length+"/"+last7.length,c:P.gold},
+    {l:"Procrastinación",v:last7.filter(e=>e.wellbeing?.procrastinated).length+" días",c:P.warmGray},
+    {l:"Días con registro",v:last7.length+"/7",c:P.sage},
+  ];
+
+  return(
+    <div style={{animation:"fadeUp 0.4s ease"}}>
+      {/* Metrics */}
+      <Card>
+        <div style={{fontSize:9,letterSpacing:"0.15em",textTransform:"uppercase",color:P.terracotta,marginBottom:14}}>Últimos 7 días</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+          {metrics.map(({l,v,c})=>(
+            <div key={l} style={{background:P.parchment,borderRadius:10,padding:"10px 13px"}}>
+              <div style={{fontSize:9,letterSpacing:"0.1em",textTransform:"uppercase",color:P.warmGray,marginBottom:4}}>{l}</div>
+              <span style={{fontFamily:"'Playfair Display',serif",fontSize:16,color:c,fontWeight:500}}>{v}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Agua chart */}
+        {last7.some(e=>e.nutrition?.water)&&(
+          <div style={{marginBottom:14}}>
+            <div style={{fontSize:10,letterSpacing:"0.1em",textTransform:"uppercase",color:P.warmGray,marginBottom:8}}>💧 Agua</div>
+            <div style={{display:"flex",gap:3,alignItems:"flex-end",height:44}}>
+              {last7.map((e,i)=>{const w=e.nutrition?.water||0;const h=Math.max(3,(w/12)*44);const color=w>=6?P.sage:w>=4?P.sand:P.terracottaLight;return<div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3}}><div style={{width:"100%",height:h,background:color,borderRadius:3}}/><span style={{fontSize:8,color:P.warmGray}}>{w||"·"}</span></div>;})}
+            </div>
+          </div>
+        )}
+
+        {/* Sueño chart */}
+        {last7.some(e=>e.morning?.sleepH)&&(
+          <div>
+            <div style={{fontSize:10,letterSpacing:"0.1em",textTransform:"uppercase",color:P.warmGray,marginBottom:8}}>🌙 Sueño</div>
+            <div style={{display:"flex",gap:3,alignItems:"flex-end",height:44}}>
+              {last7.map((e,i)=>{const s=e.morning?.sleepH||0;const h=Math.max(3,(s/10)*44);const color=s>=7?P.sage:s>=5?P.sand:P.terracottaLight;return<div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3}}><div style={{width:"100%",height:h,background:color,borderRadius:3}}/><span style={{fontSize:8,color:P.warmGray}}>{s||"·"}</span></div>;})}
+            </div>
+          </div>
+        )}
+      </Card>
+
+      {/* AI Analysis */}
+      <Card style={{background:`linear-gradient(135deg,${P.terracotta}10,${P.sage}10)`,borderColor:P.terracotta+"30"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:analysis?14:0}}>
+          {serif("Mi análisis",16,P.charcoal,false,500)}
+          <button onClick={generate} disabled={loading} style={{padding:"8px 16px",background:loading?P.sand:P.terracotta,color:P.white,border:"none",borderRadius:20,fontSize:12,cursor:loading?"default":"pointer",fontFamily:"'Jost',sans-serif",fontWeight:500}}>
+            {loading?"Analizando...":analysis?"↺ Regenerar":"✦ Generar"}
+          </button>
+        </div>
+        {loading&&<Loader/>}
+        {analysis&&!loading&&<div style={{fontFamily:"'Playfair Display',serif",fontSize:14,lineHeight:1.9,fontStyle:"italic",color:P.charcoal,whiteSpace:"pre-line"}}>{analysis}</div>}
+        {!analysis&&!loading&&<div style={{textAlign:"center",padding:"16px 0",color:P.sand,fontSize:13,fontStyle:"italic"}}>Generá tu análisis cuando quieras — incluye hoy y los últimos días</div>}
+      </Card>
+
+      {/* Today summary */}
+      {Object.keys(todayEntry).length>0&&(
+        <Card>
+          <div style={{fontSize:10,letterSpacing:"0.12em",textTransform:"uppercase",color:P.warmGray,marginBottom:14}}>Resumen de hoy</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            {[
+              {l:"Entreno",v:todayEntry.workout?.sessionType==="gym"?`Gym día ${todayEntry.workout.gymDay}`:todayEntry.workout?.selectedVideo?.name||todayEntry.workout?.sessionType||"—"},
+              {l:"Agua",v:todayEntry.nutrition?.water?`${todayEntry.nutrition.water} vasos`:"—"},
+              {l:"Sueño",v:todayEntry.morning?.sleepH?`${todayEntry.morning.sleepH}h`:"—"},
+              {l:"Pasos",v:todayEntry.workout?.steps||"—"},
+              {l:"Al despertar",v:todayEntry.morning?.wakeupFeel?.slice(0,2).join(", ")||"—"},
+              {l:"Procrastinación",v:todayEntry.wellbeing?.procrastinated?"sí":"no"},
+            ].map(({l,v})=>(
+              <div key={l} style={{background:P.parchment,borderRadius:10,padding:"10px 13px"}}>
+                <div style={{fontSize:9,letterSpacing:"0.1em",textTransform:"uppercase",color:P.warmGray,marginBottom:4}}>{l}</div>
+                <span style={{fontFamily:"'Playfair Display',serif",fontSize:14}}>{v}</span>
+              </div>
+            ))}
+          </div>
+          {todayEntry.wellbeing?.win&&<div style={{marginTop:14,borderTop:`1px solid ${P.parchment}`,paddingTop:14}}><div style={{fontSize:9,letterSpacing:"0.1em",textTransform:"uppercase",color:P.terracotta,marginBottom:6}}>Victoria</div><div style={{fontFamily:"'Playfair Display',serif",fontSize:14,fontStyle:"italic"}}>"{todayEntry.wellbeing.win}"</div></div>}
+        </Card>
+      )}
     </div>
   );
 }
@@ -606,7 +665,7 @@ function AIChat({todayEntry,cycleData}){
   const bottomRef=useRef(null);
   useEffect(()=>{bottomRef.current?.scrollIntoView({behavior:"smooth"});},[msgs]);
 
-  const QUICK=["¿Qué patrón estás viendo?","Ayudame a ver esto diferente","Estoy procrastinando","¿Cómo conecto con lo que quiero ser?","¿Y si lo intento de otra manera?"];
+  const QUICK=["¿Qué patrón estás viendo?","Ayudame a ver esto diferente","Estoy procrastinando","¿Cómo conecto con lo que quiero ser?","¿Y si lo veo de otra manera?"];
 
   const send=async(text)=>{
     if(!text.trim()) return;
@@ -614,8 +673,7 @@ function AIChat({todayEntry,cycleData}){
     const phase=cycleData?.currentDay?getPhase(cycleData.currentDay):null;
     const ctx=`Contexto: ${phase?`Fase ${phase.name} día ${cycleData.currentDay}.`:""} ${todayEntry?.morning?.wakeupFeel?.length?`Despertó: ${todayEntry.morning.wakeupFeel.join(", ")}.`:""} ${todayEntry?.wellbeing?.emotions?.length?`Emociones: ${todayEntry.wellbeing.emotions.join(", ")}.`:""}`;
     const history=msgs.slice(-6).map(m=>({role:m.role,content:m.content}));
-    const apiKey=process.env.REACT_APP_ANTHROPIC_KEY;
-    const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:600,system:JULI_CTX+"\n\n"+ctx,messages:[...history,{role:"user",content:text}]})});
+    const r=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:600,system:JULI_CTX+"\n\n"+ctx,messages:[...history,{role:"user",content:text}]})});
     const d=await r.json();
     setMsgs(p=>[...p,{role:"assistant",content:d.content?.[0]?.text||"Seguimos."}]);setLoading(false);
   };
@@ -640,148 +698,65 @@ function AIChat({todayEntry,cycleData}){
   );
 }
 
-// ── FEEDBACK ──────────────────────────────────────────────────────────────────
-function FeedbackView({entry}){
-  const[feedback,setFeedback]=useState(null);
-  const[loading,setLoading]=useState(false);
-
-  const generate=async()=>{
-    if(!entry) return;
-    setLoading(true);
-    const prompt=`Analizá el día completo de Julieta como el micelio. NO genérico. NO paternalista.
-
-1. Lo que resonó hoy — algo concreto
-2. Una conexión que quizás no viste — conectá datos: despertar, emociones, movimiento, comida, procrastinación
-3. Una pregunta o frase — que la conecte con la Julieta que construye
-
-Datos del día:
-${JSON.stringify(entry,null,2)}`;
-    const r=await callAI(JULI_CTX,prompt,600);
-    setFeedback(r);setLoading(false);
-  };
-
-  if(!entry) return<div style={{textAlign:"center",padding:"50px 20px"}}>{serif("Completá tu día primero",18,P.warmGray,true)}</div>;
+// ── VIDEO LIBRARY ─────────────────────────────────────────────────────────────
+function VideoLibrary({videos,onUpdate}){
+  const[name,setName]=useState("");
+  const[url,setUrl]=useState("");
+  const[cat,setCat]=useState("Yoga");
+  const CATS=["Yoga","Pilates","Meditación","Respiración","Movilidad","Otro"];
+  const add=()=>{if(!name.trim()||!url.trim()) return;onUpdate([...videos,{id:Date.now(),name:name.trim(),url:url.trim(),category:cat}]);setName("");setUrl("");};
+  const remove=(id)=>onUpdate(videos.filter(v=>v.id!==id));
 
   return(
-    <div style={{animation:"fadeUp 0.4s ease"}}>
-      <Card style={{background:`linear-gradient(135deg,${P.terracotta}10,${P.sage}10)`,borderColor:P.terracotta+"30"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:feedback?14:0}}>
-          <div style={{fontSize:10,letterSpacing:"0.15em",textTransform:"uppercase",color:P.terracotta}}>Tu feedback</div>
-          <button onClick={generate} disabled={loading} style={{padding:"8px 16px",background:loading?P.sand:P.terracotta,color:P.white,border:"none",borderRadius:20,fontSize:12,cursor:loading?"default":"pointer",fontFamily:"'Jost',sans-serif",fontWeight:500}}>
-            {loading?"Procesando...":feedback?"↺ Regenerar":"✦ Generar"}
-          </button>
-        </div>
-        {loading&&<Loader/>}
-        {feedback&&!loading&&<div style={{fontFamily:"'Playfair Display',serif",fontSize:15,lineHeight:1.9,fontStyle:"italic",color:P.charcoal,whiteSpace:"pre-line",marginTop:14}}>{feedback}</div>}
-        {!feedback&&!loading&&<div style={{textAlign:"center",padding:"16px 0",color:P.sand,fontSize:13,fontStyle:"italic"}}>Tocá "Generar" cuando hayas completado tu día</div>}
-      </Card>
+    <div>
       <Card>
-        <div style={{fontSize:10,letterSpacing:"0.12em",textTransform:"uppercase",color:P.warmGray,marginBottom:14}}>Resumen</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-          {[
-            {l:"Entreno",v:entry.workout?.gymDay?`Gym día ${entry.workout.gymDay}`:entry.workout?.selectedVideo?.name||entry.workout?.sessionType||"—"},
-            {l:"Agua",v:entry.nutrition?.water?`${entry.nutrition.water} vasos`:"—"},
-            {l:"Sueño",v:entry.wellbeing?.sleepH?`${entry.wellbeing.sleepH}h`:"—"},
-            {l:"Pasos",v:entry.workout?.steps||"—"},
-            {l:"Al despertar",v:entry.morning?.wakeupFeel?.slice(0,2).join(", ")||"—"},
-            {l:"Procrastinación",v:entry.wellbeing?.procrastinated?"sí":"no"},
-          ].map(({l,v})=>(
-            <div key={l} style={{background:P.parchment,borderRadius:10,padding:"10px 13px"}}>
-              <div style={{fontSize:9,letterSpacing:"0.1em",textTransform:"uppercase",color:P.warmGray,marginBottom:4}}>{l}</div>
-              <span style={{fontFamily:"'Playfair Display',serif",fontSize:14}}>{v}</span>
-            </div>
+        {serif("Agregar video",15,P.charcoal,false,500)}
+        <div style={{marginTop:14}}>
+          {lbl("Categoría")}<div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:12}}>{CATS.map(c=><Chip key={c} active={cat===c} onClick={()=>setCat(c)} color={P.sage}>{c}</Chip>)}</div>
+          {lbl("Nombre")}<input value={name} onChange={e=>setName(e.target.value)} placeholder="Ej: Yin yoga 45min..." style={{width:"100%",background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:10,padding:"10px 13px",fontSize:13,color:P.charcoal,marginBottom:10}}/>
+          {lbl("Link de YouTube")}<input value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://youtube.com/watch?v=..." style={{width:"100%",background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:10,padding:"10px 13px",fontSize:13,color:P.charcoal,marginBottom:12}}/>
+          <button onClick={add} disabled={!name.trim()||!url.trim()} style={{width:"100%",padding:"11px",background:P.sage,color:P.white,border:"none",borderRadius:10,fontFamily:"'Playfair Display',serif",fontSize:15,cursor:"pointer"}}>+ Agregar</button>
+        </div>
+      </Card>
+      {videos.length===0&&<div style={{textAlign:"center",padding:"20px",color:P.sand,fontSize:13,fontStyle:"italic"}}>Todavía no agregaste videos</div>}
+      {CATS.filter(c=>videos.some(v=>v.category===c)).map(c=>(
+        <div key={c}>
+          <div style={{fontSize:10,letterSpacing:"0.12em",textTransform:"uppercase",color:P.warmGray,marginBottom:8,marginTop:4}}>{c}</div>
+          {videos.filter(v=>v.category===c).map(v=>(
+            <Card key={v.id} style={{padding:"13px 16px"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div style={{flex:1}}>{serif(v.name,14,P.charcoal,false,500)}</div>
+                <div style={{display:"flex",gap:8}}>
+                  <a href={v.url} target="_blank" rel="noopener noreferrer" style={{padding:"6px 12px",background:P.terracotta,color:P.white,borderRadius:20,fontSize:11,textDecoration:"none",fontFamily:"'Jost',sans-serif"}}>▶ Ver</a>
+                  <button onClick={()=>remove(v.id)} style={{background:"none",border:"none",color:P.sand,cursor:"pointer",fontSize:18}}>×</button>
+                </div>
+              </div>
+            </Card>
           ))}
         </div>
-        {entry.wellbeing?.win&&<div style={{marginTop:14,borderTop:`1px solid ${P.parchment}`,paddingTop:14}}><div style={{fontSize:9,letterSpacing:"0.1em",textTransform:"uppercase",color:P.terracotta,marginBottom:6}}>Victoria</div><div style={{fontFamily:"'Playfair Display',serif",fontSize:14,fontStyle:"italic"}}>"{entry.wellbeing.win}"</div></div>}
-      </Card>
+      ))}
     </div>
   );
 }
 
-// ── WEEKLY SUMMARY ────────────────────────────────────────────────────────────
-function WeeklySummary({entries}){
-  const[summary,setSummary]=useState(null);
-  const[loading,setLoading]=useState(false);
-
-  const getLast7=()=>{
-    const days=[];
-    for(let i=6;i>=0;i--){
-      const d=new Date();d.setDate(d.getDate()-i);
-      const key=d.toISOString().split("T")[0];
-      if(entries[key]) days.push(entries[key]);
-    }
-    return days;
-  };
-
-  const generate=async()=>{
-    const last7=getLast7();
-    if(last7.length===0){setSummary("Completá al menos un día para ver tu resumen.");return;}
-    setLoading(true);
-    const r=await callAI(JULI_CTX,`Analizá la semana de Julieta y mostrá patrones reales. Como el micelio — conexiones que ella quizás no ve.\n\n1. Patrones que emergen\n2. Lo que está creciendo\n3. Una pregunta para la semana que viene\n\nDatos:\n${JSON.stringify(last7,null,2)}`,600);
-    setSummary(r);setLoading(false);
-  };
-
-  const last7=getLast7();
-  const metrics=[
-    {l:"Agua promedio",v:last7.filter(e=>e.nutrition?.water).length?Math.round(last7.filter(e=>e.nutrition?.water).reduce((a,e)=>a+e.nutrition.water,0)/last7.filter(e=>e.nutrition?.water).length)+" vasos":"—",c:P.sage},
-    {l:"Sueño promedio",v:last7.filter(e=>e.wellbeing?.sleepH).length?Math.round(last7.filter(e=>e.wellbeing?.sleepH).reduce((a,e)=>a+e.wellbeing.sleepH,0)/last7.filter(e=>e.wellbeing?.sleepH).length*10)/10+"h":"—",c:P.warmGray},
-    {l:"Días entrené",v:last7.filter(e=>e.workout?.sessionType).length+"/7",c:P.terracotta},
-    {l:"Ritual mañana",v:last7.filter(e=>e.morning?.ritualDone).length+"/7",c:P.gold},
-    {l:"Procrastinación",v:last7.filter(e=>e.wellbeing?.procrastinated).length+" días",c:P.warmGray},
-    {l:"Días registrados",v:last7.length+"/7",c:P.sage},
-  ];
-
-  return(
-    <div style={{animation:"fadeUp 0.4s ease"}}>
-      <Card>
-        <div style={{fontSize:9,letterSpacing:"0.15em",textTransform:"uppercase",color:P.terracotta,marginBottom:14}}>Últimos 7 días</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
-          {metrics.map(({l,v,c})=>(
-            <div key={l} style={{background:P.parchment,borderRadius:10,padding:"10px 13px"}}>
-              <div style={{fontSize:9,letterSpacing:"0.1em",textTransform:"uppercase",color:P.warmGray,marginBottom:4}}>{l}</div>
-              <span style={{fontFamily:"'Playfair Display',serif",fontSize:16,color:c,fontWeight:500}}>{v}</span>
-            </div>
-          ))}
-        </div>
-        {last7.some(e=>e.nutrition?.water)&&(
-          <div style={{marginBottom:16}}>
-            <div style={{fontSize:10,letterSpacing:"0.1em",textTransform:"uppercase",color:P.warmGray,marginBottom:8}}>Agua esta semana</div>
-            <div style={{display:"flex",gap:4,alignItems:"flex-end",height:50}}>
-              {last7.map((e,i)=>{const w=e.nutrition?.water||0;const h=Math.max(4,(w/12)*50);const color=w>=6?P.sage:w>=4?P.sand:P.terracottaLight;return<div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3}}><div style={{width:"100%",height:h,background:color,borderRadius:4}}/><span style={{fontSize:9,color:P.warmGray}}>{w||"—"}</span></div>;})}
-            </div>
-          </div>
-        )}
-      </Card>
-      <Card>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:summary?14:0}}>
-          {serif("Análisis semanal",16,P.charcoal,false,500)}
-          <button onClick={generate} disabled={loading} style={{padding:"8px 16px",background:loading?P.sand:P.terracotta,color:P.white,border:"none",borderRadius:20,fontSize:12,cursor:loading?"default":"pointer",fontFamily:"'Jost',sans-serif",fontWeight:500}}>{loading?"Analizando...":"✦ Generar"}</button>
-        </div>
-        {loading&&<Loader/>}
-        {summary&&!loading&&<div style={{fontFamily:"'Playfair Display',serif",fontSize:14,lineHeight:1.9,color:P.charcoal,whiteSpace:"pre-line",fontStyle:"italic"}}>{summary}</div>}
-        {!summary&&!loading&&<div style={{textAlign:"center",padding:"16px 0",color:P.sand,fontSize:13,fontStyle:"italic"}}>Tocá "Generar" para ver tus patrones</div>}
-      </Card>
-    </div>
-  );
-}
-
-// ── HISTORY ───────────────────────────────────────────────────────────────────
+// ── HISTORIAL ─────────────────────────────────────────────────────────────────
 function HistoryView({entries}){
   const sorted=Object.values(entries).filter(e=>e.date).sort((a,b)=>b.date.localeCompare(a.date));
   if(!sorted.length) return<div style={{textAlign:"center",padding:"60px 20px"}}>{serif("Tu historia comienza hoy",20,P.warmGray,true)}</div>;
   return<div>{sorted.map((e,i)=>(
-    <Card key={e.date} delay={i*0.05}>
-      <div style={{fontFamily:"'Playfair Display',serif",fontSize:15,fontWeight:500,textTransform:"capitalize",marginBottom:8}}>{new Date(e.date+"T12:00:00").toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"})}</div>
-      <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+    <Card key={e.date} delay={i*0.04} style={{padding:"14px 16px"}}>
+      <div style={{fontFamily:"'Playfair Display',serif",fontSize:14,fontWeight:500,textTransform:"capitalize",marginBottom:7}}>{new Date(e.date+"T12:00:00").toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"})}</div>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:6}}>
         {e.workout?.sessionType&&<span style={{fontSize:11,color:P.terracotta}}>✦ {e.workout.sessionType==="gym"?`Gym día ${e.workout.gymDay}`:e.workout.sessionType}</span>}
         {e.workout?.steps&&<span style={{fontSize:11,color:P.warmGray}}>👣{e.workout.steps}</span>}
         {e.nutrition?.water&&<span style={{fontSize:11,color:P.sage}}>💧{e.nutrition.water}</span>}
-        {e.wellbeing?.sleepH&&<span style={{fontSize:11,color:P.warmGray}}>🌙{e.wellbeing.sleepH}h</span>}
-        {e.morning?.ritualDone&&<span style={{fontSize:11,color:P.gold}}>☀️ ritual</span>}
-        {e.morning?.isFasting&&<span style={{fontSize:11,color:P.warmGray}}>⏱ ayuno</span>}
-        {e.wellbeing?.emotions?.slice(0,2).map(em=><span key={em} style={{fontSize:11,color:P.warmGray}}>{em}</span>)}
+        {e.morning?.sleepH&&<span style={{fontSize:11,color:P.warmGray}}>🌙{e.morning.sleepH}h</span>}
+        {e.morning?.ritualDone&&<span style={{fontSize:11,color:P.gold}}>☀️</span>}
+        {e.nutrition?.isFasting&&<span style={{fontSize:11,color:P.warmGray}}>⏱ayuno</span>}
       </div>
-      {e.wellbeing?.win&&<div style={{marginTop:8,borderTop:`1px solid ${P.parchment}`,paddingTop:8,fontSize:11,color:P.warmGray,fontStyle:"italic"}}>"{e.wellbeing.win}"</div>}
+      {e.morning?.wakeupFeel?.length>0&&<div style={{fontSize:11,color:P.warmGray,marginBottom:4}}>Despertó: {e.morning.wakeupFeel.slice(0,3).join(" · ")}</div>}
+      {e.wellbeing?.emotions?.length>0&&<div style={{fontSize:11,color:P.warmGray,marginBottom:4}}>Emociones: {e.wellbeing.emotions.slice(0,3).join(" · ")}</div>}
+      {e.wellbeing?.win&&<div style={{fontSize:11,color:P.terracottaLight,fontStyle:"italic",borderTop:`1px solid ${P.parchment}`,paddingTop:6,marginTop:4}}>"{e.wellbeing.win}"</div>}
     </Card>
   ))}</div>;
 }
@@ -789,21 +764,15 @@ function HistoryView({entries}){
 // ── MAIN ──────────────────────────────────────────────────────────────────────
 export default function App(){
   const[tab,setTab]=useState("manana");
-  const[subTab,setSubTab]=useState("entrenamiento");
+  const[subTab,setSubTab]=useState("movimiento");
   const[appData,setAppData]=useState({entries:{},cycle:{currentDay:5}});
   const[mantras,setMantras]=useState([]);
   const[videos,setVideos]=useState([]);
-  const[saved,setSaved]=useState({morning:false,workout:false,nutrition:false,wellbeing:false});
-  const[showMantras,setShowMantras]=useState(false);
 
+  // Load everything on mount
   useEffect(()=>{
-    loadData().then(d=>{
-      if(d&&Object.keys(d).length){
-        setAppData(d);
-        const t=d.entries?.[today()];
-        if(t) setSaved({morning:!!t.morning,workout:!!t.workout,nutrition:!!t.nutrition,wellbeing:!!t.wellbeing});
-      }
-    });
+    const d=loadAppData();
+    setAppData(d);
     setMantras(loadMantras());
     setVideos(loadVideos());
   },[]);
@@ -812,12 +781,24 @@ export default function App(){
   const phase=getPhase(appData.cycle?.currentDay||5);
   const todayFmt=new Date().toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"});
 
-  const persist=async(nd)=>{await saveData(nd);};
-
-  const saveSection=async(section,data)=>{
-    const updated={...appData,entries:{...appData.entries,[today()]:{...todayEntry,[section]:data,date:today()}}};
-    setAppData(updated);setSaved(p=>({...p,[section]:true}));await persist(updated);
-  };
+  // Unified save function — saves immediately to localStorage
+  const saveSection=useCallback((section,data)=>{
+    setAppData(prev=>{
+      const updated={
+        ...prev,
+        entries:{
+          ...prev.entries,
+          [today()]:{
+            ...prev.entries[today()],
+            [section]:data,
+            date:today()
+          }
+        }
+      };
+      saveAppData(updated);
+      return updated;
+    });
+  },[]);
 
   const updateMantras=(m)=>{setMantras(m);saveMantras(m);};
   const updateVideos=(v)=>{setVideos(v);saveVideos(v);};
@@ -825,15 +806,19 @@ export default function App(){
   const TABS=[
     {k:"manana",l:"Mañana"},
     {k:"hoy",l:"Hoy"},
-    {k:"chat",l:"Chat"},
     {k:"ciclo",l:"Ciclo"},
     {k:"astro",l:"Astro"},
-    {k:"feedback",l:"Feedback"},
-    {k:"semana",l:"Semana"},
+    {k:"analisis",l:"Análisis"},
+    {k:"chat",l:"Chat"},
     {k:"videos",l:"Videos"},
-    {k:"historial",l:"Hist"},
+    {k:"historial",l:"Historial"},
   ];
-  const SUBTABS=[{k:"entrenamiento",l:"Movimiento",done:saved.workout},{k:"nutricion",l:"Nutrición",done:saved.nutrition},{k:"bienestar",l:"Bienestar",done:saved.wellbeing}];
+
+  const HOY_TABS=[
+    {k:"movimiento",l:"Movimiento"},
+    {k:"nutricion",l:"Nutrición"},
+    {k:"bienestar",l:"Bienestar"},
+  ];
 
   return(
     <div style={{minHeight:"100vh",background:P.cream,maxWidth:480,margin:"0 auto"}}>
@@ -841,7 +826,7 @@ export default function App(){
       <div style={{background:P.white,borderBottom:`1px solid ${P.parchment}`,padding:"18px 20px 0",position:"sticky",top:0,zIndex:10,boxShadow:"0 2px 14px rgba(40,38,31,0.06)"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
           <div>
-            <div style={{fontSize:9,letterSpacing:"0.2em",textTransform:"uppercase",color:P.terracotta,marginBottom:3}}>Mi sistema personal</div>
+            <div style={{fontSize:9,letterSpacing:"0.2em",textTransform:"uppercase",color:P.terracotta,marginBottom:3}}>mi sistema personal</div>
             {serif("Julieta",24,P.charcoal,false,500)}
             <div style={{marginTop:3,fontSize:11,color:P.warmGray,textTransform:"capitalize"}}>{todayFmt}</div>
           </div>
@@ -858,33 +843,34 @@ export default function App(){
 
       <div style={{padding:"16px 16px 60px"}}>
         {tab==="manana"&&(
-          <div>
-            <button onClick={()=>setShowMantras(!showMantras)} style={{width:"100%",padding:"10px",background:"transparent",border:`1px dashed ${P.gold}`,borderRadius:10,color:P.gold,fontSize:11,cursor:"pointer",fontFamily:"'Jost',sans-serif",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>
-              {showMantras?"▾ Ocultar mis frases":"✦ Mis frases y recordatorios"}
-            </button>
-            {showMantras&&<Card><MantrasManager mantras={mantras} onUpdate={updateMantras}/></Card>}
-            <MorningSection data={todayEntry?.morning} onChange={d=>saveSection("morning",d)} mantras={mantras} cycleDay={appData.cycle?.currentDay||5}/>
-          </div>
+          <MorningTab
+            appData={appData}
+            onSave={saveSection}
+            mantras={mantras}
+            onUpdateMantras={updateMantras}
+          />
         )}
 
         {tab==="hoy"&&(
           <div>
-            <div style={{display:"flex",gap:8,marginBottom:16}}>
-              {SUBTABS.map(st=><button key={st.k} onClick={()=>setSubTab(st.k)} style={{flex:1,padding:"9px 4px",borderRadius:10,border:`1px solid ${subTab===st.k?P.terracotta:P.sand}`,background:subTab===st.k?P.terracotta+"15":"transparent",color:subTab===st.k?P.terracotta:P.warmGray,fontSize:11,cursor:"pointer",fontFamily:"'Jost',sans-serif",letterSpacing:"0.05em",textTransform:"uppercase",fontWeight:subTab===st.k?500:300,transition:"all 0.2s",position:"relative"}}>
-                {st.l}{st.done&&<span style={{position:"absolute",top:4,right:6,width:6,height:6,borderRadius:"50%",background:P.sage}}/>}
-              </button>)}
+            <div style={{display:"flex",gap:6,marginBottom:16}}>
+              {HOY_TABS.map(st=>(
+                <button key={st.k} onClick={()=>setSubTab(st.k)} style={{flex:1,padding:"9px 4px",borderRadius:10,border:`1px solid ${subTab===st.k?P.terracotta:P.sand}`,background:subTab===st.k?P.terracotta+"15":"transparent",color:subTab===st.k?P.terracotta:P.warmGray,fontSize:11,cursor:"pointer",fontFamily:"'Jost',sans-serif",letterSpacing:"0.05em",textTransform:"uppercase",fontWeight:subTab===st.k?500:300,transition:"all 0.2s"}}>
+                  {st.l}
+                  {todayEntry[st.k==="movimiento"?"workout":st.k==="nutricion"?"nutrition":"wellbeing"]&&<span style={{display:"inline-block",width:6,height:6,borderRadius:"50%",background:P.sage,marginLeft:5,verticalAlign:"middle"}}/>}
+                </button>
+              ))}
             </div>
-            {subTab==="entrenamiento"&&<WorkoutLog onSave={d=>saveSection("workout",d)} existing={todayEntry?.workout} wasSaved={saved.workout} videos={videos}/>}
-            {subTab==="nutricion"&&<NutritionLog onSave={d=>saveSection("nutrition",d)} existing={todayEntry?.nutrition} wasSaved={saved.nutrition}/>}
-            {subTab==="bienestar"&&<WellbeingLog onSave={d=>saveSection("wellbeing",d)} existing={todayEntry?.wellbeing} wasSaved={saved.wellbeing}/>}
+            {subTab==="movimiento"&&<WorkoutLog onSave={d=>saveSection("workout",d)} existing={todayEntry?.workout} videos={videos}/>}
+            {subTab==="nutricion"&&<NutritionLog onSave={d=>saveSection("nutrition",d)} existing={todayEntry?.nutrition}/>}
+            {subTab==="bienestar"&&<WellbeingLog onSave={d=>saveSection("wellbeing",d)} existing={todayEntry?.wellbeing}/>}
           </div>
         )}
 
-        {tab==="chat"&&<AIChat todayEntry={todayEntry} cycleData={appData.cycle}/>}
-        {tab==="ciclo"&&<CycleView cycleData={appData.cycle} onUpdate={d=>{const u={...appData,cycle:d};setAppData(u);persist(u);}}/>}
+        {tab==="ciclo"&&<CycleView cycleData={appData.cycle} onUpdate={d=>{const u={...appData,cycle:d};setAppData(u);saveAppData(u);}}/>}
         {tab==="astro"&&<AstrologyView cycleData={appData.cycle}/>}
-        {tab==="feedback"&&<FeedbackView entry={Object.keys(todayEntry).length>0?todayEntry:null}/>}
-        {tab==="semana"&&<WeeklySummary entries={appData.entries||{}}/>}
+        {tab==="analisis"&&<AnalisisView entries={appData.entries||{}} cycleData={appData.cycle}/>}
+        {tab==="chat"&&<AIChat todayEntry={todayEntry} cycleData={appData.cycle}/>}
         {tab==="videos"&&<VideoLibrary videos={videos} onUpdate={updateVideos}/>}
         {tab==="historial"&&<HistoryView entries={appData.entries||{}}/>}
       </div>

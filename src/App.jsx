@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 const SK = "maritima_v6";
 const SK_MANTRAS = "maritima_mantras";
 const SK_VIDEOS = "maritima_videos";
+const SK_PROFILE = "maritima_profile";
 
 const CYCLE_PHASES = {
   menstrual:{name:"Menstrual",days:[1,2,3,4,5,6],color:"#C4856A",icon:"🌑",desc:"Descanso profundo. Tu cuerpo hace un trabajo enorme. Honrá el ritmo lento.",energy:"Baja",training:"Yoga restaurativo, caminatas suaves.",mood:"Introspección, sensibilidad, soltar.",foods:"Hierro: carnes rojas, lentejas, espinaca, chocolate amargo. Menos cafeína. Más caldos.",foodNote:"Más hierro · menos cafeína · chocolate amargo 🍫"},
@@ -19,17 +20,14 @@ const WORKOUTS={
 };
 
 const ACTIVATION=["Respiración diafragmática 90/90 — 10 resp","Cat-Cow lento — 8 reps","Hip 90/90 rotación activa — 6 c/lado","Glute bridge isométrico 5 seg — 8 reps","Bird-dog con pausa — 6 c/lado","Wall angels — 10 reps"];
-const MEAL_META={
-  desayuno:{label:"Desayuno",icon:"☀️",target:"~30g proteína · ~40g carbs · ~15g grasa",example:"2 huevos + scoop proteína + 40g pan sarraceno + 30g palta",placeholder:"¿Qué comiste?"},
-  almuerzo:{label:"Almuerzo",icon:"🌿",target:"~35g proteína · ~50g carbs · ~15g grasa",example:"150g pollo + batata + vegetales + AOVE",placeholder:"¿Qué comiste?"},
-  merienda:{label:"Merienda ⭐",icon:"🕓",target:"~25g proteína · ~20g carbs · ~10g grasa",example:"Yogur griego + frutos rojos + 1 cdita miel",placeholder:"Obligatoria con proteína."},
-  cena:{label:"Cena",icon:"🌙",target:"~35g proteína · ~20g carbs · ~15g grasa",example:"150g salmón + vegetales + AOVE",placeholder:"Más liviana en carbs."},
-};
-const CARDIO_OPTIONS=["Cinta","Bici","Caminata","Trote","Elíptica","Natación","Otro"];
-const WAKEUP_FEELINGS=["tranquila","acelerada","ansiosa","descansada","confundida","motivada","pesada","liviana","triste","presente"];
-const MORNING_RITUALS=["Estiramientos","Masaje facial","Respiraciones","Drenaje linfático","TRE","Meditación","Journaling","Tapping"];
-const EMOTIONS=["tranquila","ansiosa","motivada","cansada","triste","plena","irritada","agradecida","confundida","conectada","urgencia","libre"];
-const PROC_REASONS=["Abrumamiento","Perfeccionismo","Miedo al fracaso","Falta de energía","Distracción (redes)","No sé por dónde empezar","Urgencia financiera","Otro"];
+const CARDIO_OPTIONS=["Cinta","Bici","Caminata","Trote","Elíptica","Natación","Bailar","Otro"];
+const WAKEUP_FEELINGS=["tranquila","acelerada","ansiosa","descansada","confundida","motivada","pesada","liviana","triste","presente","esperanzada","agotada"];
+const MORNING_RITUALS=["Estiramientos","Masaje facial","Respiraciones","Drenaje linfático","TRE","Meditación","Journaling","Tapping","Yoga","Caminata"];
+const EMOTIONS=["tranquila","ansiosa","motivada","cansada","triste","plena","irritada","agradecida","confundida","conectada","urgencia","libre","asustada","creativa"];
+const SUPPLS=["Magnesio","Zinc","Vitamina D3","Omega 3","Hierro","Progesterona","Enzimas digestivas","Glutamina","Soporte adrenal","Ashwaganda"];
+const CYCLE_TYPES=["Regular","Irregular","Amenorrea","Anovulatorio","Perimenopausia"];
+const CYCLE_SYMPTOMS=["Doloroso","Sin dolor","Flujo abundante","Flujo escaso","Coágulos","Spotting","Náuseas","Hinchazón","Cefalea"];
+const SESSION_TYPES=["Gym","Pilates","Yoga","Caminata","Running","Natación","Bailar","Funcional","Otro"];
 
 const P={cream:"#F7F2EA",parchment:"#EDE5D4",sand:"#CFC0A8",terracotta:"#B8745A",terracottaLight:"#CE9680",sage:"#7A9480",charcoal:"#28261F",warmGray:"#7A6E65",white:"#FDFAF3",gold:"#C4A96A",indigo:"#6B7DB3"};
 
@@ -37,7 +35,7 @@ const GS=`
   @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Jost:wght@300;400;500&display=swap');
   *{box-sizing:border-box;margin:0;padding:0;}
   html,body{background:${P.cream};font-family:'Jost',sans-serif;color:${P.charcoal};}
-  textarea,input{font-family:'Jost',sans-serif;}
+  textarea,input,select{font-family:'Jost',sans-serif;}
   textarea:focus,input:focus{outline:none;}
   ::-webkit-scrollbar{width:3px;}
   ::-webkit-scrollbar-thumb{background:${P.sand};border-radius:2px;}
@@ -46,21 +44,19 @@ const GS=`
 `;
 
 const today=()=>new Date().toISOString().split("T")[0];
-
-// ── STORAGE — todas las claves separadas para mayor resiliencia ───────────────
 const LS={
-  get:(key)=>{try{const r=localStorage.getItem(key);return r?JSON.parse(r):null;}catch{return null;}},
-  set:(key,val)=>{try{localStorage.setItem(key,JSON.stringify(val));}catch{}},
+  get:(k)=>{try{const r=localStorage.getItem(k);return r?JSON.parse(r):null;}catch{return null;}},
+  set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}},
 };
-
-const loadAppData=()=>LS.get(SK)||{entries:{},cycle:{currentDay:5}};
+const loadAppData=()=>LS.get(SK)||{entries:{},cycle:{currentDay:5,cycleType:"Regular"}};
 const saveAppData=(d)=>LS.set(SK,d);
 const loadMantras=()=>LS.get(SK_MANTRAS)||[];
 const saveMantras=(m)=>LS.set(SK_MANTRAS,m);
 const loadVideos=()=>LS.get(SK_VIDEOS)||[];
 const saveVideos=(v)=>LS.set(SK_VIDEOS,v);
+const loadProfile=()=>LS.get(SK_PROFILE)||{};
+const saveProfile=(p)=>LS.set(SK_PROFILE,p);
 
-// ── AI ────────────────────────────────────────────────────────────────────────
 const callAI=async(system,user,maxTokens=700)=>{
   try{
     const r=await fetch("/api/chat",{
@@ -73,22 +69,58 @@ const callAI=async(system,user,maxTokens=700)=>{
   }catch(e){return"";}
 };
 
-const JULI_CTX=`Sos el agente personal de bienestar de Julieta, 37 años, argentina, instructora de Pilates y emprendedora. Carta natal: Sol Géminis, Ascendente Aries, Luna Piscis. Nacida el 6/6/1988, 3:30am, Olavarría, Buenos Aires.
+const JULI_CTX=`Sos el agente personal de bienestar de Julieta, 37 años, argentina, instructora de Pilates y emprendedora (Somos Marítima). Carta natal: Sol Géminis, Ascendente Aries, Luna Piscis. Nacida el 6/6/1988, 3:30am, Olavarría, Buenos Aires.
 
-Tu rol es como el micelio: ayudala a ver conexiones, patrones, rutas nuevas. No das consejos directivos. Hacés preguntas que abren. Podés citar a Clarissa Pinkola Estés, Glennon Doyle, Rumi, Van der Kolk, Gabor Maté.
+Tu rol es como el micelio: conectás todo, ayudás a ver patrones que ella no ve sola. No das consejos directivos. Hacés preguntas que abren rutas nuevas. Podés citar a Clarissa Pinkola Estés, Glennon Doyle, Rumi, Van der Kolk, Gabor Maté, neurocientíficos.
+
+Cuando hay patrones repetidos (ej: atracones de dulce, procrastinación, despertar acelerada) los nombrás con curiosidad, no con juicio. Los conectás con otros datos del día o la semana.
 
 Nunca sos paternalista. Ella elige. Vos abrís caminos.
 Hablale de vos, español rioplatense. Directa, honesta, cálida.`;
 
-// ── UI ────────────────────────────────────────────────────────────────────────
+// ── UI primitives ─────────────────────────────────────────────────────────────
 const serif=(txt,sz=16,color=P.charcoal,italic=false,weight=400)=><span style={{fontFamily:"'Playfair Display',serif",fontSize:sz,color,fontStyle:italic?"italic":"normal",fontWeight:weight}}>{txt}</span>;
 const lbl=(txt)=><div style={{fontSize:10,letterSpacing:"0.12em",textTransform:"uppercase",color:P.warmGray,marginBottom:7,fontWeight:400}}>{txt}</div>;
-const Card=({children,style={},delay=0})=><div style={{background:P.white,borderRadius:16,padding:"17px 19px",marginBottom:12,border:`1px solid ${P.parchment}`,animation:`fadeUp 0.4s ease ${delay}s both`,boxShadow:"0 1px 8px rgba(40,38,31,0.05)",...style}}>{children}</div>;
-const Chip=({active,onClick,children,color=P.terracotta})=><button onClick={onClick} style={{padding:"6px 12px",borderRadius:20,border:`1px solid ${active?color:P.sand}`,background:active?color:"transparent",color:active?P.white:P.warmGray,fontSize:12,cursor:"pointer",fontFamily:"'Jost',sans-serif",fontWeight:active?500:300,transition:"all 0.18s",marginBottom:4}}>{children}</button>;
+const Card=({children,style={},delay=0})=><div style={{background:P.white,borderRadius:16,padding:"15px 17px",marginBottom:12,border:`1px solid ${P.parchment}`,animation:`fadeUp 0.4s ease ${delay}s both`,boxShadow:"0 1px 8px rgba(40,38,31,0.05)",...style}}>{children}</div>;
+const Chip=({active,onClick,children,color=P.terracotta,small=false})=><button onClick={onClick} style={{padding:small?"4px 9px":"6px 12px",borderRadius:20,border:`1px solid ${active?color:P.sand}`,background:active?color:"transparent",color:active?P.white:P.warmGray,fontSize:small?10:12,cursor:"pointer",fontFamily:"'Jost',sans-serif",fontWeight:active?500:300,transition:"all 0.18s",marginBottom:4}}>{children}</button>;
 const Slider=({value,onChange,min=1,max=10,lbl:l,color=P.terracotta})=><div style={{marginBottom:14}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}><span style={{fontSize:10,letterSpacing:"0.12em",textTransform:"uppercase",color:P.warmGray}}>{l}</span><span style={{fontFamily:"'Playfair Display',serif",fontSize:14,color}}>{value}</span></div><input type="range" min={min} max={max} value={value} onChange={e=>onChange(+e.target.value)} style={{width:"100%",accentColor:color,cursor:"pointer"}}/></div>;
-const TA=({value,onChange,placeholder,rows=3})=><textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={rows} style={{width:"100%",background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:10,padding:"10px 13px",fontSize:13,color:P.charcoal,resize:"none",lineHeight:1.6,fontWeight:300}}/>;
 const Loader=()=><div style={{display:"flex",gap:4,padding:"8px 0"}}>{[0,0.2,0.4].map((d,i)=><div key={i} style={{width:8,height:8,borderRadius:"50%",background:P.sand,animation:`pulse 1s ease ${d}s infinite`}}/>)}</div>;
-const AutoSaved=()=><div style={{display:"flex",alignItems:"center",gap:6,fontSize:10,color:P.sage,marginBottom:10}}><span>✓</span><span>Guardado automáticamente</span></div>;
+const AutoSaved=()=><div style={{fontSize:10,color:P.sage,marginBottom:8,display:"flex",alignItems:"center",gap:5}}><span>✓</span>Guardado</div>;
+
+// ── VOICE INPUT ───────────────────────────────────────────────────────────────
+function VoiceTextArea({value,onChange,placeholder,rows=3,onVoiceResult}){
+  const[listening,setListening]=useState(false);
+  const recRef=useRef(null);
+
+  const startListening=()=>{
+    if(!('webkitSpeechRecognition'in window||'SpeechRecognition'in window)){alert("Tu navegador no soporta voz. Probá Chrome.");return;}
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    const rec=new SR();
+    rec.lang="es-AR";rec.continuous=false;rec.interimResults=false;
+    rec.onstart=()=>setListening(true);
+    rec.onend=()=>setListening(false);
+    rec.onresult=(e)=>{
+      const transcript=e.results[0][0].transcript;
+      const newVal=value?(value+" "+transcript):transcript;
+      onChange(newVal);
+      if(onVoiceResult) onVoiceResult(newVal);
+    };
+    rec.onerror=()=>setListening(false);
+    recRef.current=rec;
+    rec.start();
+  };
+
+  return(
+    <div style={{position:"relative"}}>
+      <textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={rows}
+        style={{width:"100%",background:P.parchment,border:`1px solid ${listening?P.terracotta:P.sand}`,borderRadius:10,padding:"10px 40px 10px 13px",fontSize:13,color:P.charcoal,resize:"none",lineHeight:1.6,fontWeight:300,transition:"border-color 0.2s"}}/>
+      <button onClick={startListening} style={{position:"absolute",right:8,top:8,width:26,height:26,borderRadius:"50%",background:listening?P.terracotta:P.terracotta+"20",border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,transition:"all 0.2s"}}>
+        {listening?"🔴":"🎤"}
+      </button>
+      {listening&&<div style={{fontSize:10,color:P.terracotta,marginTop:3,textAlign:"right"}}>Escuchando...</div>}
+    </div>
+  );
+}
 
 // ── MANTRAS ───────────────────────────────────────────────────────────────────
 function MantrasManager({mantras,onUpdate}){
@@ -104,7 +136,7 @@ function MantrasManager({mantras,onUpdate}){
       {mantras.length===0&&<div style={{fontSize:12,color:P.sand,fontStyle:"italic",textAlign:"center",padding:"10px 0"}}>Todavía no agregaste frases</div>}
       {mantras.map((m,i)=>(
         <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:P.parchment,borderRadius:10,padding:"10px 14px",marginBottom:8}}>
-          <span style={{fontFamily:"'Playfair Display',serif",fontSize:13,fontStyle:"italic",color:P.charcoal,flex:1}}>{m}</span>
+          <span style={{fontFamily:"'Playfair Display',serif",fontSize:13,fontStyle:"italic",color:P.charcoal,flex:1,lineHeight:1.5}}>{m}</span>
           <button onClick={()=>remove(i)} style={{background:"none",border:"none",color:P.sand,cursor:"pointer",fontSize:16,marginLeft:8}}>×</button>
         </div>
       ))}
@@ -112,110 +144,127 @@ function MantrasManager({mantras,onUpdate}){
   );
 }
 
-// ── MORNING TAB — con guardado automático real ────────────────────────────────
+// ── MORNING TAB ───────────────────────────────────────────────────────────────
 function MorningTab({appData,onSave,mantras,onUpdateMantras}){
   const existing=appData.entries?.[today()]?.morning;
   const phase=getPhase(appData.cycle?.currentDay||5);
   const todayMantra=mantras.length>0?mantras[new Date().getDate()%mantras.length]:null;
 
   const[wakeupFeel,setWakeupFeel]=useState(existing?.wakeupFeel||[]);
-  const[wakeupThoughts,setWakeupThoughts]=useState(existing?.wakeupThoughts||"");
+  const[thoughts,setThoughts]=useState(existing?.thoughts||"");
   const[rituals,setRituals]=useState(existing?.rituals||[]);
   const[customRitual,setCustomRitual]=useState("");
   const[ritualDone,setRitualDone]=useState(existing?.ritualDone||false);
   const[sleepH,setSleepH]=useState(existing?.sleepH||7);
-  const[sleepQ,setSleepQ]=useState(existing?.sleepQ||5);
-  const[phone,setPhone]=useState(existing?.phone||false);
+  const[sleepQ,setSleepQ]=useState(existing?.sleepQ||"buena");
+  const[dayState,setDayState]=useState(existing?.dayState||"");
   const[showMantras,setShowMantras]=useState(false);
-  const[justSaved,setJustSaved]=useState(false);
+  const[saved,setSaved]=useState(false);
 
-  // Auto-save whenever any field changes
   const save=useCallback((patch={})=>{
-    const data={wakeupFeel,wakeupThoughts,rituals,ritualDone,sleepH,sleepQ,phone,...patch};
+    const data={wakeupFeel,thoughts,rituals,ritualDone,sleepH,sleepQ,dayState,...patch};
     onSave("morning",data);
-    setJustSaved(true);
-    setTimeout(()=>setJustSaved(false),2000);
-  },[wakeupFeel,wakeupThoughts,rituals,ritualDone,sleepH,sleepQ,phone,onSave]);
+    setSaved(true);
+    setTimeout(()=>setSaved(false),2000);
+  },[wakeupFeel,thoughts,rituals,ritualDone,sleepH,sleepQ,dayState,onSave]);
 
   const togFeel=(f)=>{const n=wakeupFeel.includes(f)?wakeupFeel.filter(x=>x!==f):[...wakeupFeel,f];setWakeupFeel(n);save({wakeupFeel:n});};
   const togRitual=(r)=>{const n=rituals.includes(r)?rituals.filter(x=>x!==r):[...rituals,r];setRituals(n);save({rituals:n});};
   const addCustom=()=>{if(customRitual.trim()){const n=[...rituals,customRitual.trim()];setRituals(n);save({rituals:n});setCustomRitual("");}};
-  const setAndSaveSleepH=(v)=>{setSleepH(v);save({sleepH:v});};
-  const setAndSaveSleepQ=(v)=>{setSleepQ(v);save({sleepQ:v});};
-  const setAndSavePhone=(v)=>{setPhone(v);save({phone:v});};
-  const setAndSaveRitualDone=(v)=>{setRitualDone(v);save({ritualDone:v});};
+
+  // Cycle dates display
+  const cycleStart=appData.cycle?.periodStart;
+  const cycleEnd=appData.cycle?.periodEnd;
+  const cycleDay=appData.cycle?.currentDay||5;
 
   return(
     <div>
-      {/* Mantras manager */}
-      <button onClick={()=>setShowMantras(!showMantras)} style={{width:"100%",padding:"10px",background:"transparent",border:`1px dashed ${P.gold}`,borderRadius:10,color:P.gold,fontSize:11,cursor:"pointer",fontFamily:"'Jost',sans-serif",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:14}}>
-        {showMantras?"▾ Ocultar mis frases":"✦ Mis frases y recordatorios"}
+      <button onClick={()=>setShowMantras(!showMantras)} style={{width:"100%",padding:"9px",background:"transparent",border:`1px dashed ${P.gold}`,borderRadius:10,color:P.gold,fontSize:11,cursor:"pointer",fontFamily:"'Jost',sans-serif",letterSpacing:"0.08em",textTransform:"uppercase",marginBottom:12}}>
+        {showMantras?"▾ Mis frases":"✦ Mis frases y recordatorios"}
       </button>
       {showMantras&&<Card><MantrasManager mantras={mantras} onUpdate={onUpdateMantras}/></Card>}
 
-      {/* Daily mantra */}
       {todayMantra&&(
         <Card style={{background:`linear-gradient(135deg,${P.gold}15,${P.terracotta}08)`,borderColor:P.gold+"40"}}>
-          <div style={{fontSize:9,letterSpacing:"0.2em",textTransform:"uppercase",color:P.gold,marginBottom:10}}>Tu recordatorio de hoy</div>
-          <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontStyle:"italic",color:P.charcoal,lineHeight:1.7,textAlign:"center",padding:"8px 0"}}>{todayMantra}</div>
+          <div style={{fontSize:9,letterSpacing:"0.2em",textTransform:"uppercase",color:P.gold,marginBottom:8}}>Para hoy</div>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:17,fontStyle:"italic",color:P.charcoal,lineHeight:1.7,textAlign:"center"}}>{todayMantra}</div>
         </Card>
       )}
 
-      {/* Cycle phase */}
       <Card style={{background:phase.color+"12",borderColor:phase.color+"30"}}>
-        <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          <span style={{fontSize:20}}>{phase.icon}</span>
-          <div>
-            <div style={{fontSize:9,letterSpacing:"0.1em",textTransform:"uppercase",color:phase.color,marginBottom:3}}>{phase.name} · día {appData.cycle?.currentDay}</div>
+        <div style={{display:"flex",gap:10,alignItems:"center"}}>
+          <span style={{fontSize:22}}>{phase.icon}</span>
+          <div style={{flex:1}}>
+            <div style={{fontSize:9,letterSpacing:"0.1em",textTransform:"uppercase",color:phase.color,marginBottom:2}}>{phase.name} · día {cycleDay}{cycleStart?` · inicio ${new Date(cycleStart+"T12:00:00").toLocaleDateString("es-AR",{day:"numeric",month:"short"})}`:""}
+            </div>
             <div style={{fontSize:12,color:P.charcoal}}>{phase.foodNote}</div>
+            <div style={{fontSize:11,color:phase.color,marginTop:3,fontStyle:"italic"}}>{phase.mood}</div>
           </div>
         </div>
       </Card>
 
-      {justSaved&&<AutoSaved/>}
+      {saved&&<AutoSaved/>}
 
-      {/* Wakeup */}
       <Card>
-        {serif("Al despertar",15,P.charcoal,false,500)}
-        <div style={{marginTop:12,marginBottom:10}}>{lbl("¿Cómo te despertaste?")}</div>
-        <div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:14}}>
-          {WAKEUP_FEELINGS.map(f=><Chip key={f} active={wakeupFeel.includes(f)} onClick={()=>togFeel(f)} color={P.gold}>{f}</Chip>)}
+        {serif("¿Cómo dormiste?",14,P.charcoal,false,500)}
+        <div style={{display:"flex",gap:12,marginTop:12}}>
+          <div style={{flex:1}}>
+            {lbl("Horas")}
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <button onClick={()=>{const v=Math.max(3,sleepH-0.5);setSleepH(v);save({sleepH:v});}} style={{width:28,height:28,borderRadius:"50%",border:`1px solid ${P.sand}`,background:P.parchment,cursor:"pointer",fontSize:16}}>−</button>
+              <span style={{fontFamily:"'Playfair Display',serif",fontSize:18,color:P.charcoal,minWidth:32,textAlign:"center"}}>{sleepH}h</span>
+              <button onClick={()=>{const v=Math.min(12,sleepH+0.5);setSleepH(v);save({sleepH:v});}} style={{width:28,height:28,borderRadius:"50%",border:`1px solid ${P.sand}`,background:P.parchment,cursor:"pointer",fontSize:16}}>+</button>
+            </div>
+          </div>
+          <div style={{flex:1}}>
+            {lbl("Calidad")}
+            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+              {["buena","regular","mala"].map(q=><Chip key={q} active={sleepQ===q} onClick={()=>{setSleepQ(q);save({sleepQ:q});}} color={q==="buena"?P.sage:q==="regular"?P.gold:P.warmGray} small>{q}</Chip>)}
+            </div>
+          </div>
         </div>
-        {lbl("Pensamientos al despertar")}
-        <TA value={wakeupThoughts} onChange={v=>setWakeupThoughts(v)} placeholder="Hoy desperté con la sensación de..." rows={2}/>
-        <button onClick={()=>save({wakeupThoughts})} style={{marginTop:8,padding:"6px 14px",background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:8,fontSize:11,color:P.warmGray,cursor:"pointer",fontFamily:"'Jost',sans-serif"}}>Guardar nota</button>
       </Card>
 
-      {/* Sleep — moved here from wellbeing */}
       <Card>
-        {serif("¿Cómo dormiste?",15,P.charcoal,false,500)}
-        <div style={{marginTop:14}}>
-          <Slider value={sleepH} onChange={setAndSaveSleepH} min={4} max={10} lbl="Horas dormidas" color={P.warmGray}/>
-          <Slider value={sleepQ} onChange={setAndSaveSleepQ} min={1} max={10} lbl="Calidad del sueño" color={P.warmGray}/>
-          <Chip active={phone} onClick={()=>setAndSavePhone(!phone)}>Usé el teléfono antes de dormir</Chip>
+        {serif("Al despertar",14,P.charcoal,false,500)}
+        <div style={{marginTop:10,marginBottom:10}}>{lbl("¿Cómo te sentiste?")}</div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
+          {WAKEUP_FEELINGS.map(f=><Chip key={f} active={wakeupFeel.includes(f)} onClick={()=>togFeel(f)} color={P.gold} small>{f}</Chip>)}
         </div>
+        {lbl("Pensamientos, sensaciones, lo que hay en tu cabeza")}
+        <VoiceTextArea value={thoughts} onChange={v=>{setThoughts(v);}} onVoiceResult={v=>save({thoughts:v})} placeholder="Hoy desperté con la sensación de... Podés escribir o hablar 🎤" rows={2}/>
+        <button onClick={()=>save({thoughts})} style={{marginTop:6,padding:"5px 12px",background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:8,fontSize:11,color:P.warmGray,cursor:"pointer"}}>Guardar</button>
       </Card>
 
-      {/* Morning ritual */}
       <Card>
-        {serif("Ritual de mañana",15,P.charcoal,false,500)}
-        <div style={{marginTop:12,marginBottom:8}}>{lbl("¿Qué hiciste para vos?")}</div>
-        <div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:12}}>
-          {MORNING_RITUALS.map(r=><Chip key={r} active={rituals.includes(r)} onClick={()=>togRitual(r)} color={P.terracotta}>{r}</Chip>)}
+        {serif("Ritual de mañana",14,P.charcoal,false,500)}
+        <div style={{marginTop:10,marginBottom:8}}>{lbl("¿Qué hiciste para vos?")}</div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
+          {MORNING_RITUALS.map(r=><Chip key={r} active={rituals.includes(r)} onClick={()=>togRitual(r)} color={P.terracotta} small>{r}</Chip>)}
         </div>
-        <div style={{display:"flex",gap:8,marginBottom:12}}>
-          <input value={customRitual} onChange={e=>setCustomRitual(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addCustom()} placeholder="Otra acción..." style={{flex:1,background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:8,padding:"8px 12px",fontSize:12,color:P.charcoal}}/>
-          <button onClick={addCustom} style={{padding:"8px 14px",background:P.terracotta,color:P.white,border:"none",borderRadius:8,fontSize:12,cursor:"pointer"}}>+</button>
+        <div style={{display:"flex",gap:8,marginBottom:10}}>
+          <input value={customRitual} onChange={e=>setCustomRitual(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addCustom()} placeholder="Otra acción..." style={{flex:1,background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:8,padding:"7px 12px",fontSize:12,color:P.charcoal}}/>
+          <button onClick={addCustom} style={{padding:"7px 12px",background:P.terracotta,color:P.white,border:"none",borderRadius:8,fontSize:12,cursor:"pointer"}}>+</button>
         </div>
-        <Chip active={ritualDone} onClick={()=>setAndSaveRitualDone(!ritualDone)} color={P.sage}>{ritualDone?"✓ Lo hice":"¿Lo completaste?"}</Chip>
+        <Chip active={ritualDone} onClick={()=>{const v=!ritualDone;setRitualDone(v);save({ritualDone:v});}} color={P.sage}>{ritualDone?"✓ Lo hice":"¿Lo completaste?"}</Chip>
+      </Card>
+
+      <Card>
+        {serif("Estado del día",14,P.charcoal,false,500)}
+        <div style={{marginTop:10,fontSize:12,color:P.warmGray,marginBottom:8}}>Podés completar esto ahora o volver más tarde</div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
+          {EMOTIONS.map(e=><Chip key={e} active={dayState.includes(e)} onClick={()=>{const n=dayState.includes(e)?dayState.replace(e,"").trim():dayState?(dayState+", "+e):e;setDayState(n);save({dayState:n});}} color={P.indigo} small>{e}</Chip>)}
+        </div>
+        <VoiceTextArea value={dayState.includes(",")||!EMOTIONS.some(e=>dayState===e)?dayState:""} onChange={v=>{setDayState(v);}} onVoiceResult={v=>save({dayState:v})} placeholder="O escribí o hablá libremente sobre cómo estás... 🎤" rows={2}/>
+        <button onClick={()=>save({dayState})} style={{marginTop:6,padding:"5px 12px",background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:8,fontSize:11,color:P.warmGray,cursor:"pointer"}}>Guardar</button>
       </Card>
     </div>
   );
 }
 
-// ── HOY — MOVIMIENTO ──────────────────────────────────────────────────────────
+// ── MOVIMIENTO ────────────────────────────────────────────────────────────────
 function WorkoutLog({onSave,existing,videos}){
-  const[sessionType,setSessionType]=useState(existing?.sessionType||"gym");
+  const[sessionTypes,setSessionTypes]=useState(existing?.sessionTypes||[]);
   const[gymDay,setGymDay]=useState(existing?.gymDay||1);
   const workout=WORKOUTS[gymDay];
   const[startTime,setStartTime]=useState(existing?.startTime||"");
@@ -224,232 +273,243 @@ function WorkoutLog({onSave,existing,videos}){
   const[sets,setSets]=useState(existing?.sets||{});
   const[notes,setNotes]=useState(existing?.notes||"");
   const[bodyFeel,setBodyFeel]=useState(existing?.bodyFeel||5);
-  const[pain,setPain]=useState(existing?.pain||1);
   const[cardioSessions,setCardioSessions]=useState(existing?.cardioSessions||[]);
   const[steps,setSteps]=useState(existing?.steps||"");
   const[selectedVideo,setSelectedVideo]=useState(existing?.selectedVideo||null);
   const[videoDone,setVideoDone]=useState(existing?.videoDone||false);
   const[pyNotes,setPyNotes]=useState(existing?.pyNotes||"");
-  const[pyIntensity,setPyIntensity]=useState(existing?.pyIntensity||5);
 
+  const togSession=t=>setSessionTypes(p=>p.includes(t)?p.filter(x=>x!==t):[...p,t]);
   const upd=(ei,si,f,v)=>setSets(p=>({...p,[`${ei}-${si}`]:{...(p[`${ei}-${si}`]||{}),[f]:v}}));
   const toggleCardio=t=>setCardioSessions(p=>p.find(s=>s.type===t)?p.filter(s=>s.type!==t):[...p,{type:t,duration:30}]);
   const updateCardioDur=(t,dur)=>setCardioSessions(p=>p.map(s=>s.type===t?{...s,duration:dur}:s));
-  const handleSave=()=>onSave({sessionType,gymDay,startTime,endTime,actDone,sets,notes,bodyFeel,pain,cardioSessions,steps,selectedVideo,videoDone,pyNotes,pyIntensity});
+  const handleSave=()=>onSave({sessionTypes,gymDay,startTime,endTime,actDone,sets,notes,bodyFeel,cardioSessions,steps,selectedVideo,videoDone,pyNotes});
 
+  const showGym=sessionTypes.includes("Gym");
+  const showPY=sessionTypes.some(t=>["Pilates","Yoga"].includes(t));
   const pyVideos=videos;
 
   return(
     <div>
       <Card>
-        {lbl("¿Qué tipo de sesión hiciste hoy?")}
-        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-          <Chip active={sessionType==="gym"} onClick={()=>setSessionType("gym")} color={P.terracotta}>🏋️ Gym</Chip>
-          <Chip active={sessionType==="pilates"} onClick={()=>setSessionType("pilates")} color={P.sage}>🧘 Pilates / Yoga</Chip>
-          <Chip active={sessionType==="both"} onClick={()=>setSessionType("both")} color={P.gold}>Ambos</Chip>
-          <Chip active={sessionType==="cardio"} onClick={()=>setSessionType("cardio")} color={P.warmGray}>Solo cardio</Chip>
+        {lbl("¿Qué tipo de sesión hiciste hoy? (podés elegir varias)")}
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          {SESSION_TYPES.map(t=><Chip key={t} active={sessionTypes.includes(t)} onClick={()=>togSession(t)} color={t==="Gym"?P.terracotta:["Pilates","Yoga"].includes(t)?P.sage:P.warmGray}>{t}</Chip>)}
         </div>
       </Card>
 
-      {(sessionType==="gym"||sessionType==="both")&&(<>
+      {showGym&&(<>
         <Card style={{background:P.terracotta+"10",borderColor:P.terracotta+"30"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-            <div>{serif(workout.name,18,P.charcoal,false,500)}<div style={{marginTop:4,fontSize:11,color:P.warmGray}}>{workout.subtitle}</div></div>
-            <div>{lbl("Día #")}<div style={{display:"flex",gap:6}}>{[1,2,3].map(d=><button key={d} onClick={()=>setGymDay(d)} style={{width:30,height:30,borderRadius:"50%",border:`2px solid ${gymDay===d?P.terracotta:P.sand}`,background:gymDay===d?P.terracotta:"transparent",color:gymDay===d?P.white:P.warmGray,fontSize:12,cursor:"pointer"}}>{d}</button>)}</div></div>
+            <div>{serif(workout.name,17,P.charcoal,false,500)}<div style={{marginTop:3,fontSize:11,color:P.warmGray}}>{workout.subtitle}</div></div>
+            <div>
+              {lbl("Día")}
+              <div style={{display:"flex",gap:5}}>
+                {[1,2,3].map(d=><button key={d} onClick={()=>setGymDay(d)} style={{width:28,height:28,borderRadius:"50%",border:`2px solid ${gymDay===d?P.terracotta:P.sand}`,background:gymDay===d?P.terracotta:"transparent",color:gymDay===d?P.white:P.warmGray,fontSize:12,cursor:"pointer"}}>{d}</button>)}
+              </div>
+            </div>
           </div>
-          <div style={{display:"flex",gap:12,marginTop:14}}>
+          <div style={{display:"flex",gap:10,marginTop:12}}>
             {[["Inicio",startTime,setStartTime],["Fin",endTime,setEndTime]].map(([l,v,s])=>(
-              <div key={l} style={{flex:1}}>{lbl(l)}<input type="time" value={v} onChange={e=>s(e.target.value)} style={{width:"100%",background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:8,padding:"8px 10px",fontSize:13,color:P.charcoal}}/></div>
+              <div key={l} style={{flex:1}}>{lbl(l)}<input type="time" value={v} onChange={e=>s(e.target.value)} style={{width:"100%",background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:8,padding:"7px 10px",fontSize:13,color:P.charcoal}}/></div>
             ))}
           </div>
         </Card>
+
         <Card>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:actDone?0:12}}>
-            {serif("Activación",14,P.charcoal,false,500)}
-            <Chip active={actDone} onClick={()=>setActDone(!actDone)} color={P.sage}>{actDone?"✓ Hecho":"Marcar hecho"}</Chip>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:actDone?0:10}}>
+            {serif("Activación",13,P.charcoal,false,500)}
+            <Chip active={actDone} onClick={()=>setActDone(!actDone)} color={P.sage} small>{actDone?"✓ Hecho":"Marcar hecho"}</Chip>
           </div>
-          {!actDone&&<div style={{marginTop:10}}>{ACTIVATION.map((a,i)=><div key={i} style={{display:"flex",gap:8,marginBottom:7}}><div style={{width:20,height:20,borderRadius:"50%",background:P.parchment,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><span style={{fontSize:10,color:P.warmGray}}>{i+1}</span></div><span style={{fontSize:12,color:P.charcoal,lineHeight:1.5}}>{a}</span></div>)}</div>}
+          {!actDone&&<div style={{marginTop:8}}>{ACTIVATION.map((a,i)=><div key={i} style={{display:"flex",gap:8,marginBottom:6}}><div style={{width:18,height:18,borderRadius:"50%",background:P.parchment,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><span style={{fontSize:9,color:P.warmGray}}>{i+1}</span></div><span style={{fontSize:11,color:P.charcoal,lineHeight:1.5}}>{a}</span></div>)}</div>}
         </Card>
+
+        <div style={{fontSize:11,color:P.warmGray,fontStyle:"italic",textAlign:"center",marginBottom:8,padding:"0 4px"}}>Completá lo que quieras — cuanto más completes, mejor registro</div>
+
         {workout.exercises.map((ex,ei)=>(
-          <Card key={ei} delay={ei*0.03}>
-            {serif(ex.name,14,P.charcoal,false,500)}
-            <div style={{marginTop:3,fontSize:11,color:P.warmGray}}>{ex.sets} series · {ex.reps} reps</div>
-            <div style={{marginTop:2,fontSize:11,color:P.terracottaLight,fontStyle:"italic",marginBottom:10}}>{ex.notes}</div>
-            <div style={{display:"grid",gridTemplateColumns:"24px 1fr 1fr 1fr",gap:5,alignItems:"center"}}>
-              {["","KG","REPS","NOTA"].map((h,i)=><span key={i} style={{fontSize:9,letterSpacing:"0.1em",color:P.warmGray,textTransform:"uppercase"}}>{h}</span>)}
+          <Card key={ei} delay={ei*0.02} style={{padding:"13px 15px"}}>
+            {serif(ex.name,13,P.charcoal,false,500)}
+            <div style={{marginTop:2,fontSize:10,color:P.warmGray}}>{ex.sets} series · {ex.reps} · {ex.notes}</div>
+            <div style={{display:"grid",gridTemplateColumns:"22px 1fr 1fr 1fr",gap:4,alignItems:"center",marginTop:8}}>
+              {["","KG","REPS","NOTA"].map((h,i)=><span key={i} style={{fontSize:9,letterSpacing:"0.08em",color:P.warmGray,textTransform:"uppercase"}}>{h}</span>)}
               {Array.from({length:ex.sets},(_,si)=>[
-                <div key={`n${si}`} style={{width:20,height:20,borderRadius:"50%",background:P.terracotta+"20",display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:9,color:P.terracotta,fontWeight:500}}>{si+1}</span></div>,
-                <input key={`k${si}`} type="number" placeholder="—" value={sets[`${ei}-${si}`]?.kg||""} onChange={e=>upd(ei,si,"kg",e.target.value)} style={{background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:7,padding:"5px 6px",fontSize:13,color:P.charcoal,width:"100%"}}/>,
-                <input key={`r${si}`} type="number" placeholder="—" value={sets[`${ei}-${si}`]?.reps||""} onChange={e=>upd(ei,si,"reps",e.target.value)} style={{background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:7,padding:"5px 6px",fontSize:13,color:P.charcoal,width:"100%"}}/>,
-                <input key={`t${si}`} type="text" placeholder="..." value={sets[`${ei}-${si}`]?.note||""} onChange={e=>upd(ei,si,"note",e.target.value)} style={{background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:7,padding:"5px 6px",fontSize:11,color:P.charcoal,width:"100%"}}/>
+                <div key={`n${si}`} style={{width:18,height:18,borderRadius:"50%",background:P.terracotta+"20",display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:9,color:P.terracotta,fontWeight:500}}>{si+1}</span></div>,
+                <input key={`k${si}`} type="number" placeholder="—" value={sets[`${ei}-${si}`]?.kg||""} onChange={e=>upd(ei,si,"kg",e.target.value)} style={{background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:6,padding:"5px 6px",fontSize:12,color:P.charcoal,width:"100%"}}/>,
+                <input key={`r${si}`} type="number" placeholder="—" value={sets[`${ei}-${si}`]?.reps||""} onChange={e=>upd(ei,si,"reps",e.target.value)} style={{background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:6,padding:"5px 6px",fontSize:12,color:P.charcoal,width:"100%"}}/>,
+                <input key={`t${si}`} type="text" placeholder="..." value={sets[`${ei}-${si}`]?.note||""} onChange={e=>upd(ei,si,"note",e.target.value)} style={{background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:6,padding:"5px 6px",fontSize:10,color:P.charcoal,width:"100%"}}/>
               ])}
             </div>
           </Card>
         ))}
       </>)}
 
-      {(sessionType==="pilates"||sessionType==="both")&&(
+      {showPY&&(
         <Card style={{background:P.sage+"10",borderColor:P.sage+"40"}}>
-          {serif("Pilates / Yoga",15,P.charcoal,false,500)}
-          <div style={{marginTop:14}}>
+          {serif("Pilates / Yoga",14,P.charcoal,false,500)}
+          <div style={{marginTop:12}}>
             {pyVideos.length>0?(
               <div>
-                {lbl("Elegí tu clase de hoy")}
+                {lbl("Elegí tu clase")}
                 {pyVideos.map(v=>(
-                  <div key={v.id} onClick={()=>setSelectedVideo(v)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:selectedVideo?.id===v.id?P.sage+"20":P.parchment,borderRadius:10,padding:"10px 14px",marginBottom:8,border:`1px solid ${selectedVideo?.id===v.id?P.sage:P.sand}`,cursor:"pointer"}}>
+                  <div key={v.id} onClick={()=>setSelectedVideo(v)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:selectedVideo?.id===v.id?P.sage+"20":P.parchment,borderRadius:10,padding:"9px 12px",marginBottom:6,border:`1px solid ${selectedVideo?.id===v.id?P.sage:P.sand}`,cursor:"pointer"}}>
                     <div>
-                      <div style={{fontSize:13,color:P.charcoal,fontWeight:selectedVideo?.id===v.id?500:300}}>{v.name}</div>
-                      <div style={{fontSize:10,color:P.sage,marginTop:2}}>{v.category}</div>
+                      <div style={{fontSize:12,color:P.charcoal,fontWeight:selectedVideo?.id===v.id?500:300}}>{v.name}</div>
+                      <div style={{fontSize:9,color:P.sage,marginTop:1}}>{v.category}</div>
                     </div>
-                    {selectedVideo?.id===v.id&&<span style={{color:P.sage,fontSize:16}}>✓</span>}
+                    {selectedVideo?.id===v.id&&<span style={{color:P.sage}}>✓</span>}
                   </div>
                 ))}
                 {selectedVideo&&(
-                  <div style={{display:"flex",gap:8,marginTop:8,marginBottom:14,alignItems:"center"}}>
-                    <a href={selectedVideo.url} target="_blank" rel="noopener noreferrer" style={{flex:1,padding:"11px",background:P.terracotta,color:P.white,borderRadius:10,textDecoration:"none",textAlign:"center",fontFamily:"'Playfair Display',serif",fontSize:14}}>▶ Ir al video</a>
-                    <Chip active={videoDone} onClick={()=>setVideoDone(!videoDone)} color={P.sage}>{videoDone?"✓ Hecho":"Marcar hecho"}</Chip>
+                  <div style={{display:"flex",gap:8,marginTop:8,marginBottom:12,alignItems:"center"}}>
+                    <a href={selectedVideo.url} target="_blank" rel="noopener noreferrer" style={{flex:1,padding:"10px",background:P.sage,color:P.white,borderRadius:10,textDecoration:"none",textAlign:"center",fontFamily:"'Playfair Display',serif",fontSize:14}}>▶ Ir al video</a>
+                    <Chip active={videoDone} onClick={()=>setVideoDone(!videoDone)} color={P.sage} small>{videoDone?"✓ Hecho":"Marcar"}</Chip>
                   </div>
                 )}
               </div>
             ):(
-              <div style={{textAlign:"center",padding:"16px 0",color:P.sand,fontSize:13,fontStyle:"italic"}}>Agregá videos en la pestaña "Videos" para elegir tu clase</div>
+              <div style={{textAlign:"center",padding:"12px 0",color:P.sand,fontSize:12,fontStyle:"italic"}}>Agregá videos en la pestaña Videos</div>
             )}
-            <Slider value={pyIntensity} onChange={setPyIntensity} min={1} max={10} lbl="Intensidad" color={P.sage}/>
-            <TA value={pyNotes} onChange={setPyNotes} placeholder="¿Cómo se sintió?" rows={2}/>
+            <VoiceTextArea value={pyNotes} onChange={setPyNotes} placeholder="¿Cómo se sintió la sesión? Podés hablar o escribir 🎤" rows={2}/>
           </div>
         </Card>
       )}
 
       <Card>
-        {serif("Cardio",14,P.charcoal,false,500)}
-        <div style={{marginTop:10,marginBottom:10}}>{lbl("Tipos (podés elegir varios)")}<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{CARDIO_OPTIONS.map(t=><Chip key={t} active={!!cardioSessions.find(s=>s.type===t)} onClick={()=>toggleCardio(t)}>{t}</Chip>)}</div></div>
+        {serif("Cardio",13,P.charcoal,false,500)}
+        <div style={{marginTop:8,marginBottom:8}}><div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{CARDIO_OPTIONS.map(t=><Chip key={t} active={!!cardioSessions.find(s=>s.type===t)} onClick={()=>toggleCardio(t)} small>{t}</Chip>)}</div></div>
         {cardioSessions.map(s=>(
-          <div key={s.type} style={{background:P.parchment,borderRadius:10,padding:"10px 14px",marginBottom:8}}>
-            <div style={{fontSize:12,color:P.terracotta,fontWeight:500,marginBottom:8}}>{s.type}</div>
+          <div key={s.type} style={{background:P.parchment,borderRadius:8,padding:"8px 12px",marginBottom:6}}>
+            <div style={{fontSize:11,color:P.terracotta,fontWeight:500,marginBottom:6}}>{s.type}</div>
             <Slider value={s.duration} onChange={v=>updateCardioDur(s.type,v)} min={5} max={120} lbl="Minutos" color={P.sage}/>
           </div>
         ))}
       </Card>
 
-      <Card>{lbl("Pasos del día")}<input type="number" value={steps} onChange={e=>setSteps(e.target.value)} placeholder="¿Cuántos pasos?" style={{width:"100%",background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:10,padding:"10px 13px",fontSize:13,color:P.charcoal}}/></Card>
+      <Card>
+        {lbl("Pasos del día")}
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <input type="number" value={steps} onChange={e=>setSteps(e.target.value)} placeholder="Cantidad de pasos" style={{flex:1,background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:8,padding:"8px 12px",fontSize:14,color:P.charcoal}}/>
+          <span style={{fontSize:12,color:P.warmGray}}>pasos</span>
+        </div>
+      </Card>
+
       <Card>
         <Slider value={bodyFeel} onChange={setBodyFeel} min={1} max={10} lbl="¿Cómo se sintió el cuerpo?"/>
-        <Slider value={pain} onChange={setPain} min={1} max={10} lbl="Dolor o molestia" color={P.warmGray}/>
-        <TA value={notes} onChange={setNotes} placeholder="Observaciones, qué notaste..."/>
+        <VoiceTextArea value={notes} onChange={setNotes} placeholder="Observaciones, qué notaste... 🎤" rows={2}/>
       </Card>
-      <button onClick={handleSave} style={{width:"100%",padding:"14px",background:P.terracotta,color:P.white,border:"none",borderRadius:11,fontFamily:"'Playfair Display',serif",fontSize:16,cursor:"pointer",marginBottom:8}}>Guardar movimiento</button>
+
+      <button onClick={handleSave} style={{width:"100%",padding:"13px",background:P.terracotta,color:P.white,border:"none",borderRadius:11,fontFamily:"'Playfair Display',serif",fontSize:15,cursor:"pointer",marginBottom:8}}>Guardar movimiento</button>
     </div>
   );
 }
 
 // ── NUTRICIÓN ─────────────────────────────────────────────────────────────────
-function NutritionLog({onSave,existing}){
-  const[meals,setMeals]=useState(existing?.meals||{desayuno:{food:"",time:""},almuerzo:{food:"",time:""},merienda:{food:"",time:""},cena:{food:"",time:""}});
-  const[water,setWater]=useState(existing?.water||4);
+function NutritionLog({onSave,existing,profile}){
+  const MEALS=[
+    {key:"desayuno",label:"Desayuno",icon:"☀️",placeholder:"¿Qué comiste?"},
+    {key:"almuerzo",label:"Almuerzo",icon:"🌿",placeholder:"¿Qué comiste?"},
+    {key:"merienda",label:"Merienda",icon:"🕓",placeholder:"Con proteína — ¿qué comiste?"},
+    {key:"cena",label:"Cena",icon:"🌙",placeholder:"¿Qué comiste?"},
+  ];
+  const[meals,setMeals]=useState(existing?.meals||{desayuno:{text:"",time:"",photo:""},almuerzo:{text:"",time:"",photo:""},merienda:{text:"",time:"",photo:""},cena:{text:"",time:"",photo:""}});
+  const[water,setWater]=useState(existing?.water||0);
   const[supps,setSupps]=useState(existing?.supps||[]);
-  const[inflammation,setInflammation]=useState(existing?.inflammation||"nada");
+  const[customSupp,setCustomSupp]=useState("");
+  const[inflammation,setInflammation]=useState(existing?.inflammation||"");
   const[bathroom,setBathroom]=useState(existing?.bathroom||false);
-  const[sugar,setSugar]=useState(existing?.sugar||3);
   const[extraNotes,setExtraNotes]=useState(existing?.extraNotes||"");
-  const[showMacros,setShowMacros]=useState({});
-  const[isFasting,setIsFasting]=useState(existing?.isFasting||false);
-  const[fastingStart,setFastingStart]=useState(existing?.fastingStart||"");
-  const[fastingEnd,setFastingEnd]=useState(existing?.fastingEnd||"");
+  const[dayClose,setDayClose]=useState(null);
+  const[loadingClose,setLoadingClose]=useState(false);
 
-  const SUPPS=["Enzimas digestivas","Berberina","Myo-inositol","Soporte adrenal","Ácido butírico","Proteína en polvo"];
-  const togSupp=s=>setSupps(p=>p.includes(s)?p.filter(x=>x!==s):[...p,s]);
   const setMealF=(k,f,v)=>setMeals(p=>({...p,[k]:{...p[k],[f]:v}}));
+  const togSupp=s=>setSupps(p=>p.includes(s)?p.filter(x=>x!==s):[...p,s]);
+  const addCustomSupp=()=>{if(customSupp.trim()&&!supps.includes(customSupp.trim())){setSupps(p=>[...p,customSupp.trim()]);setCustomSupp("");}};
 
-  const fastingHours=()=>{
-    if(!fastingStart||!fastingEnd) return null;
-    const[sh,sm]=fastingStart.split(":").map(Number);
-    const[eh,em]=fastingEnd.split(":").map(Number);
-    let diff=(eh*60+em)-(sh*60+sm);
-    if(diff<0) diff+=24*60;
-    return Math.round(diff/60*10)/10;
+  const handlePhoto=(k)=>{
+    const input=document.createElement("input");
+    input.type="file";input.accept="image/*";input.capture="environment";
+    input.onchange=(e)=>{
+      const file=e.target.files[0];
+      if(file){
+        const reader=new FileReader();
+        reader.onload=(ev)=>setMealF(k,"photo",ev.target.result);
+        reader.readAsDataURL(file);
+      }
+    };
+    input.click();
+  };
+
+  const generateClose=async()=>{
+    setLoadingClose(true);
+    const objectives=profile?.objectives||"mejorar bienestar general";
+    const mealsSummary=Object.entries(meals).map(([k,v])=>v.text||v.photo?"✓":"-").join(" ");
+    const prompt=`En base a los datos de nutrición de hoy de Julieta, generá un cierre del día corto (3-4 líneas máx), cálido y específico. Sus objetivos: ${objectives}. Hoy tomó ${water} vasos de agua. Comidas: desayuno ${meals.desayuno.text||"(sin registrar)"}, almuerzo ${meals.almuerzo.text||"(sin registrar)"}, merienda ${meals.merienda.text||"(sin registrar)"}, cena ${meals.cena.text||"(sin registrar)"}. NO uses culpa. Conectá con sus objetivos específicos. Si cumplió con algo importante para sus metas, nombralo. Si hay algo a mejorar, decilo con curiosidad.`;
+    const r=await callAI(JULI_CTX,prompt,300);
+    setDayClose(r);setLoadingClose(false);
   };
 
   return(
     <div>
-      {/* Fasting */}
-      <Card>
-        {serif("Ayuno",14,P.charcoal,false,500)}
-        <div style={{marginTop:10,marginBottom:10}}><Chip active={isFasting} onClick={()=>setIsFasting(!isFasting)} color={P.warmGray}>{isFasting?"✓ En ayuno":"¿Estás en ayuno?"}</Chip></div>
-        {isFasting&&(
-          <div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:10}}>
-              <div>{lbl("Inicio")}<input type="time" value={fastingStart} onChange={e=>setFastingStart(e.target.value)} style={{width:"100%",background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:8,padding:"8px 10px",fontSize:13,color:P.charcoal}}/></div>
-              <div>{lbl("Fin")}<input type="time" value={fastingEnd} onChange={e=>setFastingEnd(e.target.value)} style={{width:"100%",background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:8,padding:"8px 10px",fontSize:13,color:P.charcoal}}/></div>
-            </div>
-            {fastingHours()&&<div style={{textAlign:"center",fontFamily:"'Playfair Display',serif",fontSize:18,color:P.warmGray}}>{fastingHours()}h</div>}
-          </div>
-        )}
-      </Card>
-
-      {Object.entries(MEAL_META).map(([k,meta],i)=>(
-        <Card key={k} delay={i*0.05}>
+      {MEALS.map(({key:k,label,icon,placeholder})=>(
+        <Card key={k} style={{padding:"13px 15px"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-            <div style={{display:"flex",alignItems:"center",gap:7}}><span style={{fontSize:16}}>{meta.icon}</span>{serif(meta.label,14,P.charcoal,false,500)}</div>
-            <input type="time" value={meals[k]?.time||""} onChange={e=>setMealF(k,"time",e.target.value)} style={{background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:8,padding:"5px 9px",fontSize:12,color:P.warmGray,width:90}}/>
+            <div style={{display:"flex",alignItems:"center",gap:6}}><span style={{fontSize:15}}>{icon}</span>{serif(label,13,P.charcoal,false,500)}</div>
+            <input type="time" value={meals[k]?.time||""} onChange={e=>setMealF(k,"time",e.target.value)} style={{background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:7,padding:"4px 8px",fontSize:11,color:P.warmGray,width:82}}/>
           </div>
-          <button onClick={()=>setShowMacros(p=>({...p,[k]:!p[k]}))} style={{background:"none",border:"none",cursor:"pointer",fontSize:11,color:P.terracottaLight,fontFamily:"'Jost',sans-serif",padding:"0 0 8px"}}>{showMacros[k]?"▾ Ocultar":"▸ Ver guía"}</button>
-          {showMacros[k]&&<div style={{background:P.parchment,borderRadius:10,padding:"11px 13px",marginBottom:10}}><div style={{fontSize:11,color:P.terracotta,fontWeight:500,marginBottom:4}}>{meta.target}</div><div style={{fontSize:11,color:P.warmGray,lineHeight:1.5,fontStyle:"italic"}}>{meta.example}</div></div>}
-          <TA value={meals[k]?.food||""} onChange={v=>setMealF(k,"food",v)} placeholder={meta.placeholder} rows={2}/>
+          {meals[k]?.photo&&<img src={meals[k].photo} alt="plato" style={{width:"100%",borderRadius:8,marginBottom:8,maxHeight:150,objectFit:"cover"}}/>}
+          <div style={{display:"flex",gap:6,marginBottom:6}}>
+            <button onClick={()=>handlePhoto(k)} style={{padding:"6px 10px",background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:8,fontSize:11,color:P.warmGray,cursor:"pointer"}}>📷 Foto</button>
+            <span style={{fontSize:11,color:P.sand,alignSelf:"center"}}>o</span>
+          </div>
+          <VoiceTextArea value={meals[k]?.text||""} onChange={v=>setMealF(k,"text",v)} placeholder={placeholder+" 🎤"} rows={2}/>
         </Card>
       ))}
 
-      <Card delay={0.22}>
-        <Slider value={water} onChange={setWater} min={1} max={12} lbl="💧 Vasos de agua" color={P.sage}/>
-        <Slider value={sugar} onChange={setSugar} min={1} max={10} lbl="Antojo de azúcar" color={P.terracottaLight}/>
-        <div style={{marginBottom:14}}>{lbl("Inflamación")}<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{["nada","poco","moderado","mucho"].map(o=><Chip key={o} active={inflammation===o} onClick={()=>setInflammation(o)}>{o}</Chip>)}</div></div>
-        <Chip active={bathroom} onClick={()=>setBathroom(!bathroom)} color={P.sage}>{bathroom?"✓ Fui al baño":"¿Fuiste al baño?"}</Chip>
-      </Card>
-      <Card>{lbl("Suplementos")}<div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{SUPPS.map(s=><Chip key={s} active={supps.includes(s)} onClick={()=>togSupp(s)}>{s}</Chip>)}</div></Card>
-      <Card>{lbl("Notas")}<TA value={extraNotes} onChange={setExtraNotes} placeholder="Algo fuera del plan, cómo te sentiste..."/></Card>
-      <button onClick={()=>onSave({meals,water,supps,inflammation,bathroom,sugar,extraNotes,isFasting,fastingStart,fastingEnd})} style={{width:"100%",padding:"14px",background:P.terracotta,color:P.white,border:"none",borderRadius:11,fontFamily:"'Playfair Display',serif",fontSize:16,cursor:"pointer",marginBottom:8}}>Guardar nutrición</button>
-    </div>
-  );
-}
-
-// ── BIENESTAR ─────────────────────────────────────────────────────────────────
-function WellbeingLog({onSave,existing}){
-  const[emotions,setEmotions]=useState(existing?.emotions||[]);
-  const[emotionNote,setEmotionNote]=useState(existing?.emotionNote||"");
-  const[bodyNote,setBodyNote]=useState(existing?.bodyNote||"");
-  const[win,setWin]=useState(existing?.win||"");
-  const[learned,setLearned]=useState(existing?.learned||"");
-  const[energy,setEnergy]=useState(existing?.energy||5);
-  const[procrastinated,setProcrastinated]=useState(existing?.procrastinated||false);
-  const[procrastinationNote,setProcrastinationNote]=useState(existing?.procrastinationNote||"");
-  const[procrastinationWhy,setProcrastinationWhy]=useState(existing?.procrastinationWhy||[]);
-
-  const togEmotion=e=>setEmotions(p=>p.includes(e)?p.filter(x=>x!==e):[...p,e]);
-  const togProcWhy=r=>setProcrastinationWhy(p=>p.includes(r)?p.filter(x=>x!==r):[...p,r]);
-
-  return(
-    <div>
       <Card>
-        {serif("Estado interior",15,P.charcoal,false,500)}
-        <div style={{marginTop:14}}>
-          <Slider value={energy} onChange={setEnergy} min={1} max={10} lbl="Nivel de energía"/>
-          <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:14}}>{EMOTIONS.map(e=><Chip key={e} active={emotions.includes(e)} onClick={()=>togEmotion(e)}>{e}</Chip>)}</div>
-          <TA value={emotionNote} onChange={setEmotionNote} placeholder="¿Qué está pasando adentro hoy?"/>
+        {lbl("Agua del día")}
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <button onClick={()=>setWater(Math.max(0,water-1))} style={{width:32,height:32,borderRadius:"50%",border:`1px solid ${P.sand}`,background:P.parchment,cursor:"pointer",fontSize:18}}>−</button>
+          <span style={{fontFamily:"'Playfair Display',serif",fontSize:24,color:P.sage,minWidth:40,textAlign:"center"}}>{water}</span>
+          <button onClick={()=>setWater(water+1)} style={{width:32,height:32,borderRadius:"50%",border:`1px solid ${P.sand}`,background:P.parchment,cursor:"pointer",fontSize:18}}>+</button>
+          <span style={{fontSize:12,color:P.warmGray}}>vasos</span>
         </div>
       </Card>
+
       <Card>
-        {serif("Procrastinación",15,P.charcoal,false,500)}
-        <div style={{marginTop:12,marginBottom:12}}><Chip active={procrastinated} onClick={()=>setProcrastinated(!procrastinated)} color={P.warmGray}>{procrastinated?"✓ Sí procrastiné":"¿Procrastinaste?"}</Chip></div>
-        {procrastinated&&(<><div style={{marginBottom:10}}>{lbl("¿Por qué?")}</div><div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:12}}>{PROC_REASONS.map(r=><Chip key={r} active={procrastinationWhy.includes(r)} onClick={()=>togProcWhy(r)} color={P.warmGray}>{r}</Chip>)}</div><TA value={procrastinationNote} onChange={setProcrastinationNote} placeholder="¿Qué postergaste?" rows={2}/></>)}
+        <div style={{marginBottom:10}}>{lbl("Inflamación")}<div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{["nada","poca","moderada","mucha"].map(o=><Chip key={o} active={inflammation===o} onClick={()=>setInflammation(o)} small>{o}</Chip>)}</div></div>
+        <Chip active={bathroom} onClick={()=>setBathroom(!bathroom)} color={P.sage} small>{bathroom?"✓ Fui al baño":"¿Fuiste al baño?"}</Chip>
       </Card>
+
       <Card>
-        {serif("Cuerpo & Aprendizaje",15,P.charcoal,false,500)}
-        <div style={{marginTop:14}}>
-          <div style={{marginBottom:12}}>{lbl("¿Cómo está el cuerpo?")}<TA value={bodyNote} onChange={setBodyNote} placeholder="Dolor, rigidez, liviano..." rows={2}/></div>
-          <div style={{marginBottom:12}}>{lbl("¿Aprendiste algo?")}<TA value={learned} onChange={setLearned} placeholder="Podcast, artículo, idea..." rows={2}/></div>
-          {lbl("Victoria del día")}<TA value={win} onChange={setWin} placeholder="Por pequeña que sea." rows={2}/>
+        {lbl("Suplementos de hoy")}
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>{SUPPLS.map(s=><Chip key={s} active={supps.includes(s)} onClick={()=>togSupp(s)} small>{s}</Chip>)}</div>
+        <div style={{display:"flex",gap:6}}>
+          <input value={customSupp} onChange={e=>setCustomSupp(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addCustomSupp()} placeholder="Otro suplemento..." style={{flex:1,background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:8,padding:"6px 10px",fontSize:12,color:P.charcoal}}/>
+          <button onClick={addCustomSupp} style={{padding:"6px 10px",background:P.terracotta,color:P.white,border:"none",borderRadius:8,fontSize:12,cursor:"pointer"}}>+</button>
         </div>
+        {supps.filter(s=>!SUPPLS.includes(s)).map(s=>(
+          <span key={s} style={{display:"inline-block",background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:20,padding:"3px 10px",fontSize:11,color:P.charcoal,margin:"4px 4px 0 0"}}>{s} <button onClick={()=>togSupp(s)} style={{background:"none",border:"none",cursor:"pointer",color:P.sand,fontSize:12}}>×</button></span>
+        ))}
       </Card>
-      <button onClick={()=>onSave({emotions,emotionNote,bodyNote,win,learned,energy,procrastinated,procrastinationNote,procrastinationWhy})} style={{width:"100%",padding:"14px",background:P.terracotta,color:P.white,border:"none",borderRadius:11,fontFamily:"'Playfair Display',serif",fontSize:16,cursor:"pointer",marginBottom:8}}>Guardar bienestar</button>
+
+      <Card>
+        {lbl("Notas adicionales")}
+        <VoiceTextArea value={extraNotes} onChange={setExtraNotes} placeholder="Algo fuera del plan, cómo te sentiste... 🎤" rows={2}/>
+      </Card>
+
+      <button onClick={()=>onSave({meals,water,supps,inflammation,bathroom,extraNotes})} style={{width:"100%",padding:"13px",background:P.terracotta,color:P.white,border:"none",borderRadius:11,fontFamily:"'Playfair Display',serif",fontSize:15,cursor:"pointer",marginBottom:8}}>Guardar nutrición</button>
+
+      <Card style={{background:`linear-gradient(135deg,${P.terracotta}10,${P.sage}10)`,borderColor:P.terracotta+"30"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:dayClose?10:0}}>
+          {serif("Cierre del día",14,P.charcoal,false,500)}
+          <button onClick={generateClose} disabled={loadingClose} style={{padding:"6px 14px",background:loadingClose?P.sand:P.terracotta,color:P.white,border:"none",borderRadius:20,fontSize:11,cursor:"pointer",fontFamily:"'Jost',sans-serif",fontWeight:500}}>
+            {loadingClose?"...":dayClose?"↺ Regenerar":"✦ Generar"}
+          </button>
+        </div>
+        {loadingClose&&<Loader/>}
+        {dayClose&&<div style={{fontFamily:"'Playfair Display',serif",fontSize:13,lineHeight:1.8,fontStyle:"italic",color:P.charcoal}}>{dayClose}</div>}
+        {!dayClose&&!loadingClose&&<div style={{fontSize:12,color:P.sand,fontStyle:"italic",textAlign:"center",padding:"8px 0"}}>Tocá cuando hayas terminado el día</div>}
+      </Card>
     </div>
   );
 }
@@ -457,31 +517,85 @@ function WellbeingLog({onSave,existing}){
 // ── CICLO ─────────────────────────────────────────────────────────────────────
 function CycleView({cycleData,onUpdate}){
   const[day,setDay]=useState(cycleData?.currentDay||5);
+  const[cycleType,setCycleType]=useState(cycleData?.cycleType||"Regular");
+  const[periodStart,setPeriodStart]=useState(cycleData?.periodStart||"");
+  const[periodEnd,setPeriodEnd]=useState(cycleData?.periodEnd||"");
+  const[symptoms,setSymptoms]=useState(cycleData?.symptoms||[]);
   const[cycleNote,setCycleNote]=useState(cycleData?.cycleNote||"");
+  const[suppls,setSuppls]=useState(cycleData?.suppls||[]);
+  const[customSuppl,setCustomSuppl]=useState("");
   const phase=getPhase(day);
+
+  const togSymptom=s=>setSymptoms(p=>p.includes(s)?p.filter(x=>x!==s):[...p,s]);
+  const togSuppl=s=>setSuppls(p=>p.includes(s)?p.filter(x=>x!==s):[...p,s]);
+  const addCustomSuppl=()=>{if(customSuppl.trim()&&!suppls.includes(customSuppl.trim())){setSuppls(p=>[...p,customSuppl.trim()]);setCustomSuppl("");}};
+
   return(
     <div style={{animation:"fadeUp 0.4s ease"}}>
       <Card>
-        <div style={{textAlign:"center",paddingBottom:16}}>
-          <div style={{fontSize:38,marginBottom:8}}>{phase.icon}</div>
-          {serif(phase.name,22,phase.color)}
-          <div style={{marginTop:5,fontSize:12,color:P.warmGray}}>Día {day}</div>
+        <div style={{textAlign:"center",paddingBottom:14}}>
+          <div style={{fontSize:36,marginBottom:6}}>{phase.icon}</div>
+          {serif(phase.name,20,phase.color)}
+          <div style={{marginTop:4,fontSize:11,color:P.warmGray}}>Día {day}</div>
         </div>
-        <div style={{background:P.parchment,borderRadius:12,padding:"13px 15px",marginBottom:14,fontSize:13,color:P.charcoal,lineHeight:1.7,fontWeight:300}}>{phase.desc}</div>
-        <div style={{background:`linear-gradient(135deg,${phase.color}20,${phase.color}08)`,borderRadius:12,padding:"13px 15px",marginBottom:16,borderLeft:`3px solid ${phase.color}`}}>
-          <div style={{fontSize:9,letterSpacing:"0.12em",textTransform:"uppercase",color:phase.color,marginBottom:6}}>Nutrición esta fase</div>
-          <div style={{fontSize:13,color:P.charcoal,lineHeight:1.6,fontWeight:300}}>{phase.foods}</div>
+        <div style={{background:P.parchment,borderRadius:10,padding:"10px 14px",marginBottom:12,fontSize:12,color:P.charcoal,lineHeight:1.7,fontWeight:300}}>{phase.desc}</div>
+        <div style={{background:`linear-gradient(135deg,${phase.color}20,${phase.color}08)`,borderRadius:10,padding:"10px 14px",marginBottom:14,borderLeft:`3px solid ${phase.color}`}}>
+          <div style={{fontSize:9,letterSpacing:"0.1em",textTransform:"uppercase",color:phase.color,marginBottom:4}}>Nutrición esta fase</div>
+          <div style={{fontSize:12,color:P.charcoal,lineHeight:1.6,fontWeight:300}}>{phase.foods}</div>
         </div>
-        <Slider value={day} onChange={setDay} min={1} max={28} lbl="Día del ciclo" color={phase.color}/>
-        <div style={{display:"flex",gap:3,flexWrap:"wrap",marginBottom:16}}>{Array.from({length:28},(_,i)=>{const d=i+1,ph=getPhase(d),active=d===day;return<button key={d} onClick={()=>setDay(d)} style={{width:22,height:22,borderRadius:"50%",border:active?`2px solid ${ph.color}`:"none",background:active?ph.color:ph.color+"30",cursor:"pointer",fontSize:9,color:active?P.white:P.charcoal,fontWeight:active?600:300}}>{d}</button>;})}</div>
-        <div style={{marginBottom:14}}>{lbl("Anotación (dolor, síntomas)")}<TA value={cycleNote} onChange={setCycleNote} placeholder="Ej: fue doloroso, más hambre..." rows={2}/></div>
-        <button onClick={()=>onUpdate({currentDay:day,cycleNote,updatedAt:today()})} style={{width:"100%",padding:"13px",background:P.terracotta,color:P.white,border:"none",borderRadius:11,fontFamily:"'Playfair Display',serif",fontSize:16,cursor:"pointer"}}>Guardar ciclo</button>
+
+        {lbl("Día del ciclo")}
+        <div style={{display:"flex",gap:2,flexWrap:"wrap",marginBottom:12}}>
+          {Array.from({length:28},(_,i)=>{const d=i+1,ph=getPhase(d),active=d===day;return<button key={d} onClick={()=>setDay(d)} style={{width:21,height:21,borderRadius:"50%",border:active?`2px solid ${ph.color}`:"none",background:active?ph.color:ph.color+"30",cursor:"pointer",fontSize:9,color:active?P.white:P.charcoal,fontWeight:active?600:300}}>{d}</button>;})}</div>
       </Card>
+
+      <Card>
+        {lbl("Tipo de ciclo")}
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
+          {CYCLE_TYPES.map(t=><Chip key={t} active={cycleType===t} onClick={()=>setCycleType(t)} small>{t}</Chip>)}
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+          <div>
+            {lbl("Inicio menstruación")}
+            <input type="date" value={periodStart} onChange={e=>setPeriodStart(e.target.value)} style={{width:"100%",background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:8,padding:"7px 10px",fontSize:12,color:P.charcoal}}/>
+          </div>
+          <div>
+            {lbl("Fin menstruación")}
+            <input type="date" value={periodEnd} onChange={e=>setPeriodEnd(e.target.value)} style={{width:"100%",background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:8,padding:"7px 10px",fontSize:12,color:P.charcoal}}/>
+          </div>
+        </div>
+        {cycleType==="Amenorrea"&&<div style={{background:P.gold+"15",borderRadius:8,padding:"8px 12px",fontSize:12,color:P.charcoal,marginBottom:8}}>Registrando ausencia de menstruación — toda tu data sigue siendo válida y valiosa.</div>}
+      </Card>
+
+      <Card>
+        {lbl("Síntomas")}
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
+          {CYCLE_SYMPTOMS.map(s=><Chip key={s} active={symptoms.includes(s)} onClick={()=>togSymptom(s)} small>{s}</Chip>)}
+        </div>
+        <VoiceTextArea value={cycleNote} onChange={setCycleNote} placeholder="Notas libres sobre tu ciclo... 🎤" rows={2}/>
+      </Card>
+
+      <Card>
+        {lbl("Suplementos")}
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
+          {SUPPLS.map(s=><Chip key={s} active={suppls.includes(s)} onClick={()=>togSuppl(s)} small>{s}</Chip>)}
+        </div>
+        <div style={{display:"flex",gap:6}}>
+          <input value={customSuppl} onChange={e=>setCustomSuppl(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addCustomSuppl()} placeholder="Otro..." style={{flex:1,background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:8,padding:"6px 10px",fontSize:12,color:P.charcoal}}/>
+          <button onClick={addCustomSuppl} style={{padding:"6px 10px",background:P.terracotta,color:P.white,border:"none",borderRadius:8,fontSize:12,cursor:"pointer"}}>+</button>
+        </div>
+        {suppls.filter(s=>!SUPPLS.includes(s)).map(s=>(
+          <span key={s} style={{display:"inline-block",background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:20,padding:"3px 10px",fontSize:11,color:P.charcoal,margin:"4px 4px 0 0"}}>{s} <button onClick={()=>togSuppl(s)} style={{background:"none",border:"none",cursor:"pointer",color:P.sand}}>×</button></span>
+        ))}
+      </Card>
+
+      <button onClick={()=>onUpdate({currentDay:day,cycleType,periodStart,periodEnd,symptoms,cycleNote,suppls,updatedAt:today()})} style={{width:"100%",padding:"13px",background:P.terracotta,color:P.white,border:"none",borderRadius:11,fontFamily:"'Playfair Display',serif",fontSize:15,cursor:"pointer"}}>Guardar ciclo</button>
     </div>
   );
 }
 
-// ── ASTRO ─────────────────────────────────────────────────────────────────────
+// ── ASTROLOGÍA ────────────────────────────────────────────────────────────────
 function AstrologyView({cycleData}){
   const[reading,setReading]=useState(null);
   const[loading,setLoading]=useState(false);
@@ -490,46 +604,57 @@ function AstrologyView({cycleData}){
   const generate=async()=>{
     setLoading(true);
     const dateStr=new Date().toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
-    const r=await callAI("Sos una astrologa profunda. Respondés en español rioplatense.",
-      `Carta natal de Julieta: Sol Géminis, Ascendente Aries, Luna Piscis. Nacida el 6/6/1988, 3:30am, Olavarría, BA.
+    const r=await callAI(
+      "Sos una astrologa profunda con conocimiento real de tránsitos planetarios. Respondés en español rioplatense. Solo afirmás cosas que son astronómicamente verificables para la fecha dada.",
+      `Carta natal de Julieta: Sol en Géminis (6/6/1988, 3:30am, Olavarría, Buenos Aires), Ascendente en Aries, Luna en Piscis.
 Hoy es ${dateStr}. Fase del ciclo: ${phase.name} día ${cycleData?.currentDay||5}.
-Dála una lectura astrológica de HOY. Conectá los tránsitos del momento con su carta. Íntima, directa, al estilo The Pattern.
-1. La energía disponible hoy
-2. Tu carta habla
-3. Un portal concreto
-Máximo 200 palabras.`,600);
+
+Describí los tránsitos planetarios reales y verificables que están activos HOY (movimientos reales de planetas lentos como Saturno, Júpiter, Urano, Neptuno, Plutón, más lunares). Conectálos con su carta natal específicamente. Sé íntima y directa, estilo The Pattern.
+
+1. La energía real disponible hoy (basada en tránsitos verificables)
+2. Cómo impacta en su carta específicamente
+3. Un portal concreto para hoy
+
+Máximo 180 palabras. Si no estás segura de un tránsito exacto, decí "aproximadamente" en lugar de afirmar con certeza.`,
+      500
+    );
     setReading(r);setLoading(false);
   };
 
   return(
     <div style={{animation:"fadeUp 0.4s ease"}}>
       <Card style={{background:`linear-gradient(135deg,${P.indigo}15,${P.gold}08)`,borderColor:P.indigo+"30"}}>
-        <div style={{fontSize:9,letterSpacing:"0.2em",textTransform:"uppercase",color:P.indigo,marginBottom:12}}>Tu carta natal</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:14}}>
+        <div style={{fontSize:9,letterSpacing:"0.18em",textTransform:"uppercase",color:P.indigo,marginBottom:10}}>Tu carta natal</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
           {[{l:"Sol",v:"Géminis ♊",c:P.gold},{l:"Ascendente",v:"Aries ♈",c:P.terracotta},{l:"Luna",v:"Piscis ♓",c:P.indigo}].map(({l,v,c})=>(
-            <div key={l} style={{textAlign:"center",background:P.white,borderRadius:10,padding:"10px 8px"}}>
-              <div style={{fontFamily:"'Playfair Display',serif",fontSize:14,color:c,marginBottom:3}}>{v}</div>
+            <div key={l} style={{textAlign:"center",background:P.white,borderRadius:8,padding:"8px 6px"}}>
+              <div style={{fontFamily:"'Playfair Display',serif",fontSize:13,color:c,marginBottom:2}}>{v}</div>
               <div style={{fontSize:9,color:P.warmGray,letterSpacing:"0.08em",textTransform:"uppercase"}}>{l}</div>
             </div>
           ))}
         </div>
-        <div style={{fontSize:11,color:P.warmGray,lineHeight:1.6,fontStyle:"italic"}}>La mente que conecta puntos invisibles · El espíritu que arranca sin permiso · El alma que siente todo</div>
+        <div style={{fontSize:11,color:P.warmGray,lineHeight:1.6,fontStyle:"italic"}}>La mente que conecta puntos invisibles · el espíritu que arranca sin permiso · el alma que siente todo</div>
       </Card>
+
       <Card>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:reading?14:0}}>
-          {serif("Lectura de hoy",15,P.charcoal,false,500)}
-          <button onClick={generate} disabled={loading} style={{padding:"8px 16px",background:loading?P.sand:P.indigo,color:P.white,border:"none",borderRadius:20,fontSize:12,cursor:loading?"default":"pointer",fontFamily:"'Jost',sans-serif",fontWeight:500}}>{loading?"Leyendo...":"✦ Consultar"}</button>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:reading?12:0}}>
+          {serif("Lectura de hoy",14,P.charcoal,false,500)}
+          <div style={{display:"flex",gap:6,alignItems:"center"}}>
+            <span style={{fontSize:10,color:P.warmGray,fontStyle:"italic"}}>cruzada con fase {phase.name}</span>
+            <button onClick={generate} disabled={loading} style={{padding:"6px 14px",background:loading?P.sand:P.indigo,color:P.white,border:"none",borderRadius:20,fontSize:11,cursor:loading?"default":"pointer",fontFamily:"'Jost',sans-serif",fontWeight:500}}>{loading?"Leyendo...":"✦ Consultar"}</button>
+          </div>
         </div>
         {loading&&<Loader/>}
-        {reading&&!loading&&<div style={{fontFamily:"'Playfair Display',serif",fontSize:14,lineHeight:1.9,color:P.charcoal,whiteSpace:"pre-line",fontStyle:"italic"}}>{reading}</div>}
-        {!reading&&!loading&&<div style={{textAlign:"center",padding:"20px 0",color:P.sand,fontSize:13,fontStyle:"italic"}}>Tocá "Consultar" para ver qué dice el cielo hoy</div>}
+        {reading&&!loading&&<div style={{fontFamily:"'Playfair Display',serif",fontSize:13,lineHeight:1.9,color:P.charcoal,whiteSpace:"pre-line",fontStyle:"italic"}}>{reading}</div>}
+        {!reading&&!loading&&<div style={{textAlign:"center",padding:"16px 0",color:P.sand,fontSize:12,fontStyle:"italic"}}>Tocá "Consultar" para ver qué dice el cielo hoy</div>}
       </Card>
+
       <Card style={{background:P.indigo+"08",borderColor:P.indigo+"20"}}>
-        <div style={{fontSize:9,letterSpacing:"0.12em",textTransform:"uppercase",color:P.indigo,marginBottom:10}}>Arquetipo — fase {phase.name}</div>
-        <div style={{fontFamily:"'Playfair Display',serif",fontSize:14,lineHeight:1.7,color:P.charcoal}}>
+        <div style={{fontSize:9,letterSpacing:"0.1em",textTransform:"uppercase",color:P.indigo,marginBottom:8}}>Arquetipo — fase {phase.name}</div>
+        <div style={{fontFamily:"'Playfair Display',serif",fontSize:13,lineHeight:1.7,color:P.charcoal}}>
           {phase.key==="menstrual"&&"La Bruja. La que sabe sin explicar. La que descansa sin culpa. La que suelta lo que ya no sirve."}
-          {phase.key==="folicular"&&"La Doncella. La que empieza. La que ve posibilidades donde otros ven problemas."}
-          {phase.key==="ovulatoria"&&"La Madre. La que da. La que conecta. La que irradia sin esfuerzo."}
+          {phase.key==="folicular"&&"La Doncella. La que empieza. La que ve posibilidades donde otros ven problemas. Energía fresca."}
+          {phase.key==="ovulatoria"&&"La Madre. La que da. La que conecta. La que irradia sin esfuerzo. Tu magnetismo está en su pico."}
           {phase.key==="lutea"&&"La Hechicera. La que siente todo. La que necesita verdad. La que no tolera lo superficial."}
         </div>
       </Card>
@@ -537,8 +662,8 @@ Máximo 200 palabras.`,600);
   );
 }
 
-// ── ANÁLISIS — feedback + semana unificados ───────────────────────────────────
-function AnalisisView({entries,cycleData}){
+// ── ANÁLISIS ──────────────────────────────────────────────────────────────────
+function AnalisisView({entries,cycleData,profile}){
   const[analysis,setAnalysis]=useState(null);
   const[loading,setLoading]=useState(false);
   const todayEntry=entries[today()]||{};
@@ -553,104 +678,105 @@ function AnalisisView({entries,cycleData}){
     return days;
   };
 
-  const generate=async()=>{
-    const last7=getLast7();
-    setLoading(true);
-    const hasTodayData=Object.keys(todayEntry).length>0;
-    const prompt=`Analizá los datos de Julieta como el micelio. Mostrá patrones reales que ella quizás no ve.
+  const last7=getLast7();
 
-${hasTodayData?`Datos de HOY:\n${JSON.stringify(todayEntry,null,2)}\n\n`:""}
-Datos de los últimos días disponibles:
+  const metrics=[
+    {l:"Sueño promedio",v:last7.filter(e=>e.morning?.sleepH).length?(Math.round(last7.filter(e=>e.morning?.sleepH).reduce((a,e)=>a+(e.morning.sleepH||0),0)/last7.filter(e=>e.morning?.sleepH).length*10)/10)+"h":"—",c:P.warmGray,icon:"🌙"},
+    {l:"Agua promedio",v:last7.filter(e=>e.nutrition?.water).length?Math.round(last7.filter(e=>e.nutrition?.water).reduce((a,e)=>a+(e.nutrition.water||0),0)/last7.filter(e=>e.nutrition?.water).length)+" vasos":"—",c:P.sage,icon:"💧"},
+    {l:"Días moví el cuerpo",v:last7.filter(e=>e.workout?.sessionTypes?.length>0).length+"/"+last7.length,c:P.terracotta,icon:"✦"},
+    {l:"Pasos promedio",v:last7.filter(e=>e.workout?.steps).length?Math.round(last7.filter(e=>e.workout?.steps).reduce((a,e)=>a+(+e.workout.steps||0),0)/last7.filter(e=>e.workout?.steps).length).toLocaleString():"—",c:P.gold,icon:"👣"},
+    {l:"Ritual de mañana",v:last7.filter(e=>e.morning?.ritualDone).length+"/"+last7.length,c:P.gold,icon:"☀️"},
+    {l:"Días registrados",v:last7.length+"/7",c:P.sage,icon:"📋"},
+  ];
+
+  const generate=async()=>{
+    setLoading(true);
+    const phase=getPhase(cycleData?.currentDay||5);
+    const objectives=profile?.objectives||"mejorar bienestar y autoconocimiento";
+    const mainChallenges=profile?.challenges||"";
+    const prompt=`Sos el micelio de Julieta. Analizá sus datos de los últimos días y mostrá conexiones reales, patrones, y rutas nuevas de pensamiento.
+
+Sus objetivos: ${objectives}
+Sus fricciones principales: ${mainChallenges}
+Fase del ciclo: ${phase.name} día ${cycleData?.currentDay||5}
+Carta natal: Sol Géminis, Asc Aries, Luna Piscis
+
+Datos de los últimos días:
 ${JSON.stringify(last7,null,2)}
 
-Estructura tu análisis en 3 partes:
-1. **Lo que está emergiendo** — patrones reales: qué se repite, qué conexiones ves entre emociones, movimiento, sueño, procrastinación. Si hay algo que cambió aunque sea imperceptiblemente, nombralo.
-2. **Una conexión que quizás no viste** — algo concreto que conecta distintas áreas (ej: el patrón de despertar acelerada se relaciona con X, o cuando procrastinás esa semana también dormís peor)
-3. **Una pregunta o frase** — que la conecte con la Julieta que construye. Poética pero real.
+Estructura tu análisis en 3 partes BREVES:
+1. **Lo que está emergiendo** — un patrón real que ves en los datos. Conectá emociones con comportamiento, sueño con energía, movimiento con estado mental. Nombrá algo concreto que tal vez ella no vio.
+2. **Una conexión inesperada** — algo que cruza distintas áreas (ciclo + alimentación + emociones, o despertar + procrastinación + movimiento). Hacé una pregunta que abra, no que juzgue. Como el ejemplo: "¿Y si esta dificultad económica vino a empujarte a crear algo diferente?"
+3. **Una frase** — que la conecte con quien está construyendo. Podés citar un autor, una idea filosófica, algo poético pero real.
 
-Sé directa, específica, no genérica. Máximo 250 palabras.`;
-    const r=await callAI(JULI_CTX,prompt,800);
+Máximo 200 palabras total. Directo, sin relleno, sin elogios vacíos.`;
+    const r=await callAI(JULI_CTX,prompt,700);
     setAnalysis(r);setLoading(false);
   };
 
-  const last7=getLast7();
-  const metrics=[
-    {l:"Agua promedio",v:last7.filter(e=>e.nutrition?.water).length?Math.round(last7.filter(e=>e.nutrition?.water).reduce((a,e)=>a+(e.nutrition?.water||0),0)/last7.filter(e=>e.nutrition?.water).length)+" vasos":"—",c:P.sage},
-    {l:"Sueño promedio",v:last7.filter(e=>e.morning?.sleepH).length?(Math.round(last7.filter(e=>e.morning?.sleepH).reduce((a,e)=>a+(e.morning?.sleepH||0),0)/last7.filter(e=>e.morning?.sleepH).length*10)/10)+"h":"—",c:P.warmGray},
-    {l:"Días entrené",v:last7.filter(e=>e.workout?.sessionType).length+"/"+last7.length,c:P.terracotta},
-    {l:"Ritual mañana",v:last7.filter(e=>e.morning?.ritualDone).length+"/"+last7.length,c:P.gold},
-    {l:"Procrastinación",v:last7.filter(e=>e.wellbeing?.procrastinated).length+" días",c:P.warmGray},
-    {l:"Días con registro",v:last7.length+"/7",c:P.sage},
-  ];
-
   return(
     <div style={{animation:"fadeUp 0.4s ease"}}>
-      {/* Metrics */}
       <Card>
-        <div style={{fontSize:9,letterSpacing:"0.15em",textTransform:"uppercase",color:P.terracotta,marginBottom:14}}>Últimos 7 días</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
-          {metrics.map(({l,v,c})=>(
-            <div key={l} style={{background:P.parchment,borderRadius:10,padding:"10px 13px"}}>
-              <div style={{fontSize:9,letterSpacing:"0.1em",textTransform:"uppercase",color:P.warmGray,marginBottom:4}}>{l}</div>
+        <div style={{fontSize:9,letterSpacing:"0.12em",textTransform:"uppercase",color:P.terracotta,marginBottom:12}}>Últimos {last7.length} días</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:14}}>
+          {metrics.map(({l,v,c,icon})=>(
+            <div key={l} style={{background:P.parchment,borderRadius:10,padding:"10px 12px"}}>
+              <div style={{fontSize:9,letterSpacing:"0.08em",textTransform:"uppercase",color:P.warmGray,marginBottom:4}}>{icon} {l}</div>
               <span style={{fontFamily:"'Playfair Display',serif",fontSize:16,color:c,fontWeight:500}}>{v}</span>
             </div>
           ))}
         </div>
 
-        {/* Agua chart */}
         {last7.some(e=>e.nutrition?.water)&&(
-          <div style={{marginBottom:14}}>
-            <div style={{fontSize:10,letterSpacing:"0.1em",textTransform:"uppercase",color:P.warmGray,marginBottom:8}}>💧 Agua</div>
-            <div style={{display:"flex",gap:3,alignItems:"flex-end",height:44}}>
-              {last7.map((e,i)=>{const w=e.nutrition?.water||0;const h=Math.max(3,(w/12)*44);const color=w>=6?P.sage:w>=4?P.sand:P.terracottaLight;return<div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3}}><div style={{width:"100%",height:h,background:color,borderRadius:3}}/><span style={{fontSize:8,color:P.warmGray}}>{w||"·"}</span></div>;})}
+          <div style={{marginBottom:12}}>
+            <div style={{fontSize:10,letterSpacing:"0.08em",textTransform:"uppercase",color:P.warmGray,marginBottom:6}}>💧 Agua</div>
+            <div style={{display:"flex",gap:3,alignItems:"flex-end",height:40}}>
+              {last7.map((e,i)=>{const w=e.nutrition?.water||0;const h=Math.max(3,(w/12)*40);const color=w>=6?P.sage:w>=3?P.sand:P.terracottaLight;return<div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}><div style={{width:"100%",height:h,background:color,borderRadius:3}}/><span style={{fontSize:8,color:P.warmGray}}>{w||"·"}</span></div>;})}
             </div>
           </div>
         )}
 
-        {/* Sueño chart */}
         {last7.some(e=>e.morning?.sleepH)&&(
           <div>
-            <div style={{fontSize:10,letterSpacing:"0.1em",textTransform:"uppercase",color:P.warmGray,marginBottom:8}}>🌙 Sueño</div>
-            <div style={{display:"flex",gap:3,alignItems:"flex-end",height:44}}>
-              {last7.map((e,i)=>{const s=e.morning?.sleepH||0;const h=Math.max(3,(s/10)*44);const color=s>=7?P.sage:s>=5?P.sand:P.terracottaLight;return<div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3}}><div style={{width:"100%",height:h,background:color,borderRadius:3}}/><span style={{fontSize:8,color:P.warmGray}}>{s||"·"}</span></div>;})}
+            <div style={{fontSize:10,letterSpacing:"0.08em",textTransform:"uppercase",color:P.warmGray,marginBottom:6}}>🌙 Sueño</div>
+            <div style={{display:"flex",gap:3,alignItems:"flex-end",height:40}}>
+              {last7.map((e,i)=>{const s=e.morning?.sleepH||0;const h=Math.max(3,(s/10)*40);const color=s>=7?P.sage:s>=5?P.sand:P.terracottaLight;return<div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}><div style={{width:"100%",height:h,background:color,borderRadius:3}}/><span style={{fontSize:8,color:P.warmGray}}>{s||"·"}</span></div>;})}
             </div>
           </div>
         )}
       </Card>
 
-      {/* AI Analysis */}
       <Card style={{background:`linear-gradient(135deg,${P.terracotta}10,${P.sage}10)`,borderColor:P.terracotta+"30"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:analysis?14:0}}>
-          {serif("Mi análisis",16,P.charcoal,false,500)}
-          <button onClick={generate} disabled={loading} style={{padding:"8px 16px",background:loading?P.sand:P.terracotta,color:P.white,border:"none",borderRadius:20,fontSize:12,cursor:loading?"default":"pointer",fontFamily:"'Jost',sans-serif",fontWeight:500}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:analysis?12:0}}>
+          {serif("Mi análisis",15,P.charcoal,false,500)}
+          <button onClick={generate} disabled={loading} style={{padding:"7px 14px",background:loading?P.sand:P.terracotta,color:P.white,border:"none",borderRadius:20,fontSize:11,cursor:loading?"default":"pointer",fontFamily:"'Jost',sans-serif",fontWeight:500}}>
             {loading?"Analizando...":analysis?"↺ Regenerar":"✦ Generar"}
           </button>
         </div>
         {loading&&<Loader/>}
-        {analysis&&!loading&&<div style={{fontFamily:"'Playfair Display',serif",fontSize:14,lineHeight:1.9,fontStyle:"italic",color:P.charcoal,whiteSpace:"pre-line"}}>{analysis}</div>}
-        {!analysis&&!loading&&<div style={{textAlign:"center",padding:"16px 0",color:P.sand,fontSize:13,fontStyle:"italic"}}>Generá tu análisis cuando quieras — incluye hoy y los últimos días</div>}
+        {analysis&&!loading&&<div style={{fontFamily:"'Playfair Display',serif",fontSize:13,lineHeight:1.9,fontStyle:"italic",color:P.charcoal,whiteSpace:"pre-line"}}>{analysis}</div>}
+        {!analysis&&!loading&&<div style={{textAlign:"center",padding:"12px 0",color:P.sand,fontSize:12,fontStyle:"italic"}}>Generá tu análisis cuando quieras — cruza todo</div>}
       </Card>
 
-      {/* Today summary */}
       {Object.keys(todayEntry).length>0&&(
         <Card>
-          <div style={{fontSize:10,letterSpacing:"0.12em",textTransform:"uppercase",color:P.warmGray,marginBottom:14}}>Resumen de hoy</div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <div style={{fontSize:9,letterSpacing:"0.1em",textTransform:"uppercase",color:P.warmGray,marginBottom:12}}>Hoy</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
             {[
-              {l:"Entreno",v:todayEntry.workout?.sessionType==="gym"?`Gym día ${todayEntry.workout.gymDay}`:todayEntry.workout?.selectedVideo?.name||todayEntry.workout?.sessionType||"—"},
-              {l:"Agua",v:todayEntry.nutrition?.water?`${todayEntry.nutrition.water} vasos`:"—"},
+              {l:"Movimiento",v:todayEntry.workout?.sessionTypes?.join(", ")||"—"},
+              {l:"Agua",v:todayEntry.nutrition?.water!=null?`${todayEntry.nutrition.water} vasos`:"—"},
               {l:"Sueño",v:todayEntry.morning?.sleepH?`${todayEntry.morning.sleepH}h`:"—"},
               {l:"Pasos",v:todayEntry.workout?.steps||"—"},
               {l:"Al despertar",v:todayEntry.morning?.wakeupFeel?.slice(0,2).join(", ")||"—"},
-              {l:"Procrastinación",v:todayEntry.wellbeing?.procrastinated?"sí":"no"},
+              {l:"Ritual",v:todayEntry.morning?.ritualDone?"✓":"—"},
             ].map(({l,v})=>(
-              <div key={l} style={{background:P.parchment,borderRadius:10,padding:"10px 13px"}}>
-                <div style={{fontSize:9,letterSpacing:"0.1em",textTransform:"uppercase",color:P.warmGray,marginBottom:4}}>{l}</div>
-                <span style={{fontFamily:"'Playfair Display',serif",fontSize:14}}>{v}</span>
+              <div key={l} style={{background:P.parchment,borderRadius:8,padding:"8px 11px"}}>
+                <div style={{fontSize:9,letterSpacing:"0.08em",textTransform:"uppercase",color:P.warmGray,marginBottom:3}}>{l}</div>
+                <span style={{fontFamily:"'Playfair Display',serif",fontSize:13}}>{v}</span>
               </div>
             ))}
           </div>
-          {todayEntry.wellbeing?.win&&<div style={{marginTop:14,borderTop:`1px solid ${P.parchment}`,paddingTop:14}}><div style={{fontSize:9,letterSpacing:"0.1em",textTransform:"uppercase",color:P.terracotta,marginBottom:6}}>Victoria</div><div style={{fontFamily:"'Playfair Display',serif",fontSize:14,fontStyle:"italic"}}>"{todayEntry.wellbeing.win}"</div></div>}
+          {todayEntry.morning?.dayState&&<div style={{marginTop:10,borderTop:`1px solid ${P.parchment}`,paddingTop:10,fontSize:12,color:P.warmGray,fontStyle:"italic"}}>Estado: {todayEntry.morning.dayState}</div>}
         </Card>
       )}
     </div>
@@ -658,20 +784,42 @@ Sé directa, específica, no genérica. Máximo 250 palabras.`;
 }
 
 // ── CHAT ──────────────────────────────────────────────────────────────────────
-function AIChat({todayEntry,cycleData}){
+function AIChat({todayEntry,cycleData,profile}){
   const[msgs,setMsgs]=useState([{role:"assistant",content:"Hola Juli. ¿Qué querés explorar hoy?"}]);
   const[input,setInput]=useState("");
   const[loading,setLoading]=useState(false);
+  const[listening,setListening]=useState(false);
   const bottomRef=useRef(null);
   useEffect(()=>{bottomRef.current?.scrollIntoView({behavior:"smooth"});},[msgs]);
 
-  const QUICK=["¿Qué patrón estás viendo?","Ayudame a ver esto diferente","Estoy procrastinando","¿Cómo conecto con lo que quiero ser?","¿Y si lo veo de otra manera?"];
+  const QUICK=["¿Qué patrón estás viendo?","Ayudame a ver esto diferente","Estoy procrastinando","¿Y si lo intento de otra manera?","¿Cómo conecto con lo que quiero ser?"];
+
+  const startVoice=()=>{
+    if(!('webkitSpeechRecognition'in window||'SpeechRecognition'in window)){alert("Usá Chrome para voz");return;}
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    const rec=new SR();
+    rec.lang="es-AR";rec.continuous=false;rec.interimResults=false;
+    rec.onstart=()=>setListening(true);
+    rec.onend=()=>setListening(false);
+    rec.onresult=(e)=>{setInput(e.results[0][0].transcript);};
+    rec.onerror=()=>setListening(false);
+    rec.start();
+  };
 
   const send=async(text)=>{
     if(!text.trim()) return;
     setMsgs(p=>[...p,{role:"user",content:text}]);setInput("");setLoading(true);
     const phase=cycleData?.currentDay?getPhase(cycleData.currentDay):null;
-    const ctx=`Contexto: ${phase?`Fase ${phase.name} día ${cycleData.currentDay}.`:""} ${todayEntry?.morning?.wakeupFeel?.length?`Despertó: ${todayEntry.morning.wakeupFeel.join(", ")}.`:""} ${todayEntry?.wellbeing?.emotions?.length?`Emociones: ${todayEntry.wellbeing.emotions.join(", ")}.`:""}`;
+    const ctx=`Contexto completo de hoy:
+- Fase del ciclo: ${phase?`${phase.name} día ${cycleData.currentDay}`:"no registrada"}
+- Al despertar se sintió: ${todayEntry?.morning?.wakeupFeel?.join(", ")||"no registrado"}
+- Pensamientos al despertar: ${todayEntry?.morning?.thoughts||"no registrado"}
+- Estado del día: ${todayEntry?.morning?.dayState||"no registrado"}
+- Sueño: ${todayEntry?.morning?.sleepH||"?"} horas, calidad ${todayEntry?.morning?.sleepQ||"?"}
+- Movimiento: ${todayEntry?.workout?.sessionTypes?.join(", ")||"no registrado"}
+- Agua: ${todayEntry?.nutrition?.water!=null?todayEntry.nutrition.water+" vasos":"no registrado"}
+- Objetivos de la usuaria: ${profile?.objectives||"no definidos"}
+- Fricciones principales: ${profile?.challenges||"no definidas"}`;
     const history=msgs.slice(-6).map(m=>({role:m.role,content:m.content}));
     const r=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:600,system:JULI_CTX+"\n\n"+ctx,messages:[...history,{role:"user",content:text}]})});
     const d=await r.json();
@@ -680,55 +828,55 @@ function AIChat({todayEntry,cycleData}){
 
   return(
     <div style={{display:"flex",flexDirection:"column",height:"calc(100vh - 150px)"}}>
-      <div style={{display:"flex",gap:7,flexWrap:"wrap",paddingBottom:12}}>{QUICK.map(q=><button key={q} onClick={()=>send(q)} style={{padding:"5px 11px",borderRadius:20,border:`1px solid ${P.sand}`,background:P.white,color:P.warmGray,fontSize:11,cursor:"pointer",fontFamily:"'Jost',sans-serif"}}>{q}</button>)}</div>
+      <div style={{display:"flex",gap:6,flexWrap:"wrap",paddingBottom:10}}>
+        {QUICK.map(q=><button key={q} onClick={()=>send(q)} style={{padding:"4px 10px",borderRadius:20,border:`1px solid ${P.sand}`,background:P.white,color:P.warmGray,fontSize:10,cursor:"pointer",fontFamily:"'Jost',sans-serif"}}>{q}</button>)}
+      </div>
       <div style={{flex:1,overflowY:"auto",paddingRight:4}}>
         {msgs.map((m,i)=>(
-          <div key={i} style={{display:"flex",justifyContent:m.role==="user"?"flex-end":"flex-start",marginBottom:12}}>
-            <div style={{maxWidth:"82%",padding:"11px 14px",borderRadius:m.role==="user"?"16px 16px 4px 16px":"16px 16px 16px 4px",background:m.role==="user"?P.terracotta:P.white,border:m.role==="assistant"?`1px solid ${P.parchment}`:"none",color:m.role==="user"?P.white:P.charcoal,fontSize:13,lineHeight:1.65,fontWeight:300}}>{m.content}</div>
+          <div key={i} style={{display:"flex",justifyContent:m.role==="user"?"flex-end":"flex-start",marginBottom:10}}>
+            <div style={{maxWidth:"84%",padding:"10px 13px",borderRadius:m.role==="user"?"14px 14px 4px 14px":"14px 14px 14px 4px",background:m.role==="user"?P.terracotta:P.white,border:m.role==="assistant"?`1px solid ${P.parchment}`:"none",color:m.role==="user"?P.white:P.charcoal,fontSize:13,lineHeight:1.65,fontWeight:300}}>{m.content}</div>
           </div>
         ))}
-        {loading&&<div style={{display:"flex",gap:4,padding:"11px 14px",background:P.white,border:`1px solid ${P.parchment}`,borderRadius:"16px 16px 16px 4px",width:"fit-content",marginBottom:12}}>{[0,0.2,0.4].map((d,i)=><div key={i} style={{width:6,height:6,borderRadius:"50%",background:P.sand,animation:`pulse 1s ease ${d}s infinite`}}/>)}</div>}
+        {loading&&<div style={{display:"flex",gap:4,padding:"10px 13px",background:P.white,border:`1px solid ${P.parchment}`,borderRadius:"14px 14px 14px 4px",width:"fit-content",marginBottom:10}}>{[0,0.2,0.4].map((d,i)=><div key={i} style={{width:6,height:6,borderRadius:"50%",background:P.sand,animation:`pulse 1s ease ${d}s infinite`}}/>)}</div>}
         <div ref={bottomRef}/>
       </div>
-      <div style={{display:"flex",gap:8,paddingTop:12,borderTop:`1px solid ${P.parchment}`}}>
-        <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send(input)} placeholder="Escribí lo que sea..." style={{flex:1,background:P.white,border:`1px solid ${P.sand}`,borderRadius:24,padding:"11px 16px",fontSize:13,color:P.charcoal}}/>
-        <button onClick={()=>send(input)} disabled={!input.trim()||loading} style={{width:44,height:44,borderRadius:"50%",background:input.trim()?P.terracotta:P.sand,border:"none",cursor:"pointer",color:P.white,fontSize:18}}>↑</button>
+      <div style={{display:"flex",gap:8,paddingTop:10,borderTop:`1px solid ${P.parchment}`,alignItems:"center"}}>
+        <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send(input)} placeholder="Escribí o hablá..." style={{flex:1,background:P.white,border:`1px solid ${P.sand}`,borderRadius:22,padding:"10px 14px",fontSize:13,color:P.charcoal}}/>
+        <button onClick={startVoice} style={{width:38,height:38,borderRadius:"50%",background:listening?P.terracotta:P.terracotta+"20",border:"none",cursor:"pointer",fontSize:14,transition:"all 0.2s"}}>{listening?"🔴":"🎤"}</button>
+        <button onClick={()=>send(input)} disabled={!input.trim()||loading} style={{width:38,height:38,borderRadius:"50%",background:input.trim()?P.terracotta:P.sand,border:"none",cursor:"pointer",color:P.white,fontSize:16}}>↑</button>
       </div>
     </div>
   );
 }
 
-// ── VIDEO LIBRARY ─────────────────────────────────────────────────────────────
+// ── VIDEOS ────────────────────────────────────────────────────────────────────
 function VideoLibrary({videos,onUpdate}){
-  const[name,setName]=useState("");
-  const[url,setUrl]=useState("");
-  const[cat,setCat]=useState("Yoga");
+  const[name,setName]=useState("");const[url,setUrl]=useState("");const[cat,setCat]=useState("Yoga");
   const CATS=["Yoga","Pilates","Meditación","Respiración","Movilidad","Otro"];
   const add=()=>{if(!name.trim()||!url.trim()) return;onUpdate([...videos,{id:Date.now(),name:name.trim(),url:url.trim(),category:cat}]);setName("");setUrl("");};
   const remove=(id)=>onUpdate(videos.filter(v=>v.id!==id));
-
   return(
     <div>
       <Card>
-        {serif("Agregar video",15,P.charcoal,false,500)}
-        <div style={{marginTop:14}}>
-          {lbl("Categoría")}<div style={{display:"flex",gap:7,flexWrap:"wrap",marginBottom:12}}>{CATS.map(c=><Chip key={c} active={cat===c} onClick={()=>setCat(c)} color={P.sage}>{c}</Chip>)}</div>
-          {lbl("Nombre")}<input value={name} onChange={e=>setName(e.target.value)} placeholder="Ej: Yin yoga 45min..." style={{width:"100%",background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:10,padding:"10px 13px",fontSize:13,color:P.charcoal,marginBottom:10}}/>
-          {lbl("Link de YouTube")}<input value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://youtube.com/watch?v=..." style={{width:"100%",background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:10,padding:"10px 13px",fontSize:13,color:P.charcoal,marginBottom:12}}/>
-          <button onClick={add} disabled={!name.trim()||!url.trim()} style={{width:"100%",padding:"11px",background:P.sage,color:P.white,border:"none",borderRadius:10,fontFamily:"'Playfair Display',serif",fontSize:15,cursor:"pointer"}}>+ Agregar</button>
+        {serif("Agregar clase",14,P.charcoal,false,500)}
+        <div style={{marginTop:12}}>
+          {lbl("Categoría")}<div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>{CATS.map(c=><Chip key={c} active={cat===c} onClick={()=>setCat(c)} color={P.sage} small>{c}</Chip>)}</div>
+          {lbl("Nombre")}<input value={name} onChange={e=>setName(e.target.value)} placeholder="Ej: Yin yoga 45min..." style={{width:"100%",background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:8,padding:"8px 12px",fontSize:13,color:P.charcoal,marginBottom:8}}/>
+          {lbl("Link de YouTube")}<input value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://youtube.com/..." style={{width:"100%",background:P.parchment,border:`1px solid ${P.sand}`,borderRadius:8,padding:"8px 12px",fontSize:13,color:P.charcoal,marginBottom:10}}/>
+          <button onClick={add} disabled={!name.trim()||!url.trim()} style={{width:"100%",padding:"10px",background:P.sage,color:P.white,border:"none",borderRadius:10,fontFamily:"'Playfair Display',serif",fontSize:14,cursor:"pointer"}}>+ Agregar</button>
         </div>
       </Card>
-      {videos.length===0&&<div style={{textAlign:"center",padding:"20px",color:P.sand,fontSize:13,fontStyle:"italic"}}>Todavía no agregaste videos</div>}
+      {videos.length===0&&<div style={{textAlign:"center",padding:"20px",color:P.sand,fontSize:12,fontStyle:"italic"}}>Todavía no agregaste videos</div>}
       {CATS.filter(c=>videos.some(v=>v.category===c)).map(c=>(
         <div key={c}>
-          <div style={{fontSize:10,letterSpacing:"0.12em",textTransform:"uppercase",color:P.warmGray,marginBottom:8,marginTop:4}}>{c}</div>
+          <div style={{fontSize:10,letterSpacing:"0.1em",textTransform:"uppercase",color:P.warmGray,marginBottom:6,marginTop:4,paddingLeft:4}}>{c}</div>
           {videos.filter(v=>v.category===c).map(v=>(
-            <Card key={v.id} style={{padding:"13px 16px"}}>
+            <Card key={v.id} style={{padding:"11px 14px"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <div style={{flex:1}}>{serif(v.name,14,P.charcoal,false,500)}</div>
-                <div style={{display:"flex",gap:8}}>
-                  <a href={v.url} target="_blank" rel="noopener noreferrer" style={{padding:"6px 12px",background:P.terracotta,color:P.white,borderRadius:20,fontSize:11,textDecoration:"none",fontFamily:"'Jost',sans-serif"}}>▶ Ver</a>
-                  <button onClick={()=>remove(v.id)} style={{background:"none",border:"none",color:P.sand,cursor:"pointer",fontSize:18}}>×</button>
+                <span style={{fontFamily:"'Playfair Display',serif",fontSize:13,flex:1}}>{v.name}</span>
+                <div style={{display:"flex",gap:6}}>
+                  <a href={v.url} target="_blank" rel="noopener noreferrer" style={{padding:"5px 10px",background:P.terracotta,color:P.white,borderRadius:16,fontSize:10,textDecoration:"none"}}>▶ Ver</a>
+                  <button onClick={()=>remove(v.id)} style={{background:"none",border:"none",color:P.sand,cursor:"pointer",fontSize:16}}>×</button>
                 </div>
               </div>
             </Card>
@@ -744,19 +892,17 @@ function HistoryView({entries}){
   const sorted=Object.values(entries).filter(e=>e.date).sort((a,b)=>b.date.localeCompare(a.date));
   if(!sorted.length) return<div style={{textAlign:"center",padding:"60px 20px"}}>{serif("Tu historia comienza hoy",20,P.warmGray,true)}</div>;
   return<div>{sorted.map((e,i)=>(
-    <Card key={e.date} delay={i*0.04} style={{padding:"14px 16px"}}>
-      <div style={{fontFamily:"'Playfair Display',serif",fontSize:14,fontWeight:500,textTransform:"capitalize",marginBottom:7}}>{new Date(e.date+"T12:00:00").toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"})}</div>
-      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:6}}>
-        {e.workout?.sessionType&&<span style={{fontSize:11,color:P.terracotta}}>✦ {e.workout.sessionType==="gym"?`Gym día ${e.workout.gymDay}`:e.workout.sessionType}</span>}
-        {e.workout?.steps&&<span style={{fontSize:11,color:P.warmGray}}>👣{e.workout.steps}</span>}
-        {e.nutrition?.water&&<span style={{fontSize:11,color:P.sage}}>💧{e.nutrition.water}</span>}
-        {e.morning?.sleepH&&<span style={{fontSize:11,color:P.warmGray}}>🌙{e.morning.sleepH}h</span>}
-        {e.morning?.ritualDone&&<span style={{fontSize:11,color:P.gold}}>☀️</span>}
-        {e.nutrition?.isFasting&&<span style={{fontSize:11,color:P.warmGray}}>⏱ayuno</span>}
+    <Card key={e.date} delay={i*0.03} style={{padding:"12px 14px"}}>
+      <div style={{fontFamily:"'Playfair Display',serif",fontSize:13,fontWeight:500,textTransform:"capitalize",marginBottom:6}}>{new Date(e.date+"T12:00:00").toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"})}</div>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:4}}>
+        {e.workout?.sessionTypes?.length>0&&<span style={{fontSize:10,color:P.terracotta}}>✦ {e.workout.sessionTypes.join(", ")}</span>}
+        {e.workout?.steps&&<span style={{fontSize:10,color:P.warmGray}}>👣{e.workout.steps}</span>}
+        {e.nutrition?.water!=null&&<span style={{fontSize:10,color:P.sage}}>💧{e.nutrition.water}</span>}
+        {e.morning?.sleepH&&<span style={{fontSize:10,color:P.warmGray}}>🌙{e.morning.sleepH}h</span>}
+        {e.morning?.ritualDone&&<span style={{fontSize:10,color:P.gold}}>☀️</span>}
       </div>
-      {e.morning?.wakeupFeel?.length>0&&<div style={{fontSize:11,color:P.warmGray,marginBottom:4}}>Despertó: {e.morning.wakeupFeel.slice(0,3).join(" · ")}</div>}
-      {e.wellbeing?.emotions?.length>0&&<div style={{fontSize:11,color:P.warmGray,marginBottom:4}}>Emociones: {e.wellbeing.emotions.slice(0,3).join(" · ")}</div>}
-      {e.wellbeing?.win&&<div style={{fontSize:11,color:P.terracottaLight,fontStyle:"italic",borderTop:`1px solid ${P.parchment}`,paddingTop:6,marginTop:4}}>"{e.wellbeing.win}"</div>}
+      {e.morning?.wakeupFeel?.length>0&&<div style={{fontSize:10,color:P.warmGray,marginBottom:2}}>Despertó {e.morning.wakeupFeel.slice(0,3).join(" · ")}</div>}
+      {e.morning?.dayState&&<div style={{fontSize:10,color:P.warmGray,fontStyle:"italic",marginBottom:2}}>{e.morning.dayState.slice(0,60)}{e.morning.dayState.length>60?"...":""}</div>}
     </Card>
   ))}</div>;
 }
@@ -765,36 +911,25 @@ function HistoryView({entries}){
 export default function App(){
   const[tab,setTab]=useState("manana");
   const[subTab,setSubTab]=useState("movimiento");
-  const[appData,setAppData]=useState({entries:{},cycle:{currentDay:5}});
+  const[appData,setAppData]=useState({entries:{},cycle:{currentDay:5,cycleType:"Regular"}});
   const[mantras,setMantras]=useState([]);
   const[videos,setVideos]=useState([]);
+  const[profile,setProfile]=useState({});
 
-  // Load everything on mount
   useEffect(()=>{
-    const d=loadAppData();
-    setAppData(d);
+    setAppData(loadAppData());
     setMantras(loadMantras());
     setVideos(loadVideos());
+    setProfile(loadProfile());
   },[]);
 
   const todayEntry=appData.entries?.[today()]||{};
   const phase=getPhase(appData.cycle?.currentDay||5);
   const todayFmt=new Date().toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"});
 
-  // Unified save function — saves immediately to localStorage
   const saveSection=useCallback((section,data)=>{
     setAppData(prev=>{
-      const updated={
-        ...prev,
-        entries:{
-          ...prev.entries,
-          [today()]:{
-            ...prev.entries[today()],
-            [section]:data,
-            date:today()
-          }
-        }
-      };
+      const updated={...prev,entries:{...prev.entries,[today()]:{...prev.entries[today()],[section]:data,date:today()}}};
       saveAppData(updated);
       return updated;
     });
@@ -815,62 +950,52 @@ export default function App(){
   ];
 
   const HOY_TABS=[
-    {k:"movimiento",l:"Movimiento"},
-    {k:"nutricion",l:"Nutrición"},
-    {k:"bienestar",l:"Bienestar"},
+    {k:"movimiento",l:"Movimiento",done:!!todayEntry.workout},
+    {k:"nutricion",l:"Nutrición",done:!!todayEntry.nutrition},
   ];
 
   return(
     <div style={{minHeight:"100vh",background:P.cream,maxWidth:480,margin:"0 auto"}}>
       <style>{GS}</style>
-      <div style={{background:P.white,borderBottom:`1px solid ${P.parchment}`,padding:"18px 20px 0",position:"sticky",top:0,zIndex:10,boxShadow:"0 2px 14px rgba(40,38,31,0.06)"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
+      <div style={{background:P.white,borderBottom:`1px solid ${P.parchment}`,padding:"16px 18px 0",position:"sticky",top:0,zIndex:10,boxShadow:"0 2px 12px rgba(40,38,31,0.06)"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
           <div>
-            <div style={{fontSize:9,letterSpacing:"0.2em",textTransform:"uppercase",color:P.terracotta,marginBottom:3}}>mi sistema personal</div>
-            {serif("Julieta",24,P.charcoal,false,500)}
-            <div style={{marginTop:3,fontSize:11,color:P.warmGray,textTransform:"capitalize"}}>{todayFmt}</div>
+            <div style={{fontSize:9,letterSpacing:"0.2em",textTransform:"uppercase",color:P.terracotta,marginBottom:2}}>mi sistema personal</div>
+            {serif("Julieta",22,P.charcoal,false,500)}
+            <div style={{marginTop:2,fontSize:11,color:P.warmGray,textTransform:"capitalize"}}>{todayFmt}</div>
           </div>
           <div style={{textAlign:"right"}}>
-            <div style={{fontSize:22}}>{phase.icon}</div>
-            <div style={{fontSize:9,letterSpacing:"0.1em",textTransform:"uppercase",color:phase.color,marginTop:2}}>{phase.name}</div>
+            <div style={{fontSize:20}}>{phase.icon}</div>
+            <div style={{fontSize:9,letterSpacing:"0.08em",textTransform:"uppercase",color:phase.color,marginTop:1}}>{phase.name}</div>
             <div style={{fontSize:9,color:P.warmGray}}>día {appData.cycle?.currentDay}</div>
           </div>
         </div>
         <div style={{display:"flex",overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
-          {TABS.map(t=><button key={t.k} onClick={()=>setTab(t.k)} style={{padding:"9px 10px",background:"transparent",border:"none",whiteSpace:"nowrap",borderBottom:`2px solid ${tab===t.k?P.terracotta:"transparent"}`,color:tab===t.k?P.terracotta:P.warmGray,fontSize:10,cursor:"pointer",fontFamily:"'Jost',sans-serif",letterSpacing:"0.08em",textTransform:"uppercase",fontWeight:tab===t.k?500:300,transition:"all 0.2s"}}>{t.l}</button>)}
+          {TABS.map(t=><button key={t.k} onClick={()=>setTab(t.k)} style={{padding:"8px 9px",background:"transparent",border:"none",whiteSpace:"nowrap",borderBottom:`2px solid ${tab===t.k?P.terracotta:"transparent"}`,color:tab===t.k?P.terracotta:P.warmGray,fontSize:10,cursor:"pointer",fontFamily:"'Jost',sans-serif",letterSpacing:"0.06em",textTransform:"uppercase",fontWeight:tab===t.k?500:300,transition:"all 0.2s"}}>{t.l}</button>)}
         </div>
       </div>
 
-      <div style={{padding:"16px 16px 60px"}}>
-        {tab==="manana"&&(
-          <MorningTab
-            appData={appData}
-            onSave={saveSection}
-            mantras={mantras}
-            onUpdateMantras={updateMantras}
-          />
-        )}
+      <div style={{padding:"14px 14px 60px"}}>
+        {tab==="manana"&&<MorningTab appData={appData} onSave={saveSection} mantras={mantras} onUpdateMantras={updateMantras}/>}
 
         {tab==="hoy"&&(
           <div>
-            <div style={{display:"flex",gap:6,marginBottom:16}}>
+            <div style={{display:"flex",gap:6,marginBottom:14}}>
               {HOY_TABS.map(st=>(
-                <button key={st.k} onClick={()=>setSubTab(st.k)} style={{flex:1,padding:"9px 4px",borderRadius:10,border:`1px solid ${subTab===st.k?P.terracotta:P.sand}`,background:subTab===st.k?P.terracotta+"15":"transparent",color:subTab===st.k?P.terracotta:P.warmGray,fontSize:11,cursor:"pointer",fontFamily:"'Jost',sans-serif",letterSpacing:"0.05em",textTransform:"uppercase",fontWeight:subTab===st.k?500:300,transition:"all 0.2s"}}>
-                  {st.l}
-                  {todayEntry[st.k==="movimiento"?"workout":st.k==="nutricion"?"nutrition":"wellbeing"]&&<span style={{display:"inline-block",width:6,height:6,borderRadius:"50%",background:P.sage,marginLeft:5,verticalAlign:"middle"}}/>}
+                <button key={st.k} onClick={()=>setSubTab(st.k)} style={{flex:1,padding:"8px 4px",borderRadius:10,border:`1px solid ${subTab===st.k?P.terracotta:P.sand}`,background:subTab===st.k?P.terracotta+"15":"transparent",color:subTab===st.k?P.terracotta:P.warmGray,fontSize:11,cursor:"pointer",fontFamily:"'Jost',sans-serif",letterSpacing:"0.05em",textTransform:"uppercase",fontWeight:subTab===st.k?500:300,transition:"all 0.2s",position:"relative"}}>
+                  {st.l}{st.done&&<span style={{position:"absolute",top:3,right:5,width:5,height:5,borderRadius:"50%",background:P.sage}}/>}
                 </button>
               ))}
             </div>
             {subTab==="movimiento"&&<WorkoutLog onSave={d=>saveSection("workout",d)} existing={todayEntry?.workout} videos={videos}/>}
-            {subTab==="nutricion"&&<NutritionLog onSave={d=>saveSection("nutrition",d)} existing={todayEntry?.nutrition}/>}
-            {subTab==="bienestar"&&<WellbeingLog onSave={d=>saveSection("wellbeing",d)} existing={todayEntry?.wellbeing}/>}
+            {subTab==="nutricion"&&<NutritionLog onSave={d=>saveSection("nutrition",d)} existing={todayEntry?.nutrition} profile={profile}/>}
           </div>
         )}
 
         {tab==="ciclo"&&<CycleView cycleData={appData.cycle} onUpdate={d=>{const u={...appData,cycle:d};setAppData(u);saveAppData(u);}}/>}
         {tab==="astro"&&<AstrologyView cycleData={appData.cycle}/>}
-        {tab==="analisis"&&<AnalisisView entries={appData.entries||{}} cycleData={appData.cycle}/>}
-        {tab==="chat"&&<AIChat todayEntry={todayEntry} cycleData={appData.cycle}/>}
+        {tab==="analisis"&&<AnalisisView entries={appData.entries||{}} cycleData={appData.cycle} profile={profile}/>}
+        {tab==="chat"&&<AIChat todayEntry={todayEntry} cycleData={appData.cycle} profile={profile}/>}
         {tab==="videos"&&<VideoLibrary videos={videos} onUpdate={updateVideos}/>}
         {tab==="historial"&&<HistoryView entries={appData.entries||{}}/>}
       </div>
